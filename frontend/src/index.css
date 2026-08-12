@@ -1,0 +1,62 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', system-ui,
+    'Segoe UI', Roboto, sans-serif;
+
+  /* primary: 신뢰감을 주는 오션 블루 — 브랜드 기본색, 버튼, 링크 */
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-200: #bae6fd;
+  --color-primary-300: #7dd3fc;
+  --color-primary-400: #38bdf8;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-700: #0369a1;
+  --color-primary-800: #075985;
+  --color-primary-900: #0c4a6e;
+  --color-primary-950: #082f49;
+
+  /* accent: 여행의 설렘을 표현하는 선셋 코랄 — CTA, 하이라이트 */
+  --color-accent-50: #fff1f2;
+  --color-accent-100: #ffe4e6;
+  --color-accent-200: #fecdd3;
+  --color-accent-300: #fda4af;
+  --color-accent-400: #fb7185;
+  --color-accent-500: #f43f5e;
+  --color-accent-600: #e11d48;
+  --color-accent-700: #be123c;
+  --color-accent-800: #9f1239;
+  --color-accent-900: #881337;
+  --color-accent-950: #4c0519;
+
+  /* ai: AI 기능(추천, 채팅)을 표시하는 바이올렛 */
+  --color-ai-50: #f5f3ff;
+  --color-ai-100: #ede9fe;
+  --color-ai-200: #ddd6fe;
+  --color-ai-300: #c4b5fd;
+  --color-ai-400: #a78bfa;
+  --color-ai-500: #8b5cf6;
+  --color-ai-600: #7c3aed;
+  --color-ai-700: #6d28d9;
+  --color-ai-800: #5b21b6;
+  --color-ai-900: #4c1d95;
+  --color-ai-950: #2e1065;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-white text-slate-700 antialiased dark:bg-slate-950 dark:text-slate-300;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-semibold tracking-tight text-slate-900 dark:text-white;
+  }
+}

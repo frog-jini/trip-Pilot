@@ -1,0 +1,30 @@
+// destinationCatalog.ts의 25개 canonical 목적지 이름 번역. 저장되는 itinerary.destination 값은
+// 항상 한국어 canonical 문자열(또는 "제주도"·"도쿄" 같은 별칭) 그대로이며, 화면에 보여줄 때만
+// destinationTranslation.ts가 findCatalogKey()로 정규화한 뒤 이 사전을 찾는다.
+export const destinationNameTranslations: Record<string, { en: string; ja: string }> = {
+  '일본 도쿄': { en: 'Tokyo, Japan', ja: '日本 東京' },
+  '오사카': { en: 'Osaka', ja: '大阪' },
+  '제주': { en: 'Jeju', ja: '済州' },
+  '방콕': { en: 'Bangkok', ja: 'バンコク' },
+  '파리': { en: 'Paris', ja: 'パリ' },
+  '다낭': { en: 'Da Nang', ja: 'ダナン' },
+  '뉴욕': { en: 'New York', ja: 'ニューヨーク' },
+  '런던': { en: 'London', ja: 'ロンドン' },
+  '로마': { en: 'Rome', ja: 'ローマ' },
+  '시드니': { en: 'Sydney', ja: 'シドニー' },
+  '나고야': { en: 'Nagoya', ja: '名古屋' },
+  '교토': { en: 'Kyoto', ja: '京都' },
+  '후쿠오카': { en: 'Fukuoka', ja: '福岡' },
+  '서울': { en: 'Seoul', ja: 'ソウル' },
+  '부산': { en: 'Busan', ja: '釜山' },
+  '홍콩': { en: 'Hong Kong', ja: '香港' },
+  '타이베이': { en: 'Taipei', ja: '台北' },
+  '상하이': { en: 'Shanghai', ja: '上海' },
+  '싱가포르': { en: 'Singapore', ja: 'シンガポール' },
+  '쿠알라룸푸르': { en: 'Kuala Lumpur', ja: 'クアラルンプール' },
+  '발리': { en: 'Bali', ja: 'バリ' },
+  '세부': { en: 'Cebu', ja: 'セブ' },
+  '하노이': { en: 'Hanoi', ja: 'ハノイ' },
+  '호치민': { en: 'Ho Chi Minh City', ja: 'ホーチミン' },
+  '치앙마이': { en: 'Chiang Mai', ja: 'チェンマイ' },
+}

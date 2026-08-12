@@ -1,0 +1,47 @@
+import type { Language } from '../language'
+
+// /trips 목록 화면.
+export const tripsDictionary: Record<Language, Record<string, string>> = {
+  ko: {
+    heading: '내 여행 일정',
+    subheading: '지금까지 AI와 함께 만든 일정이에요.',
+    newTripButton: '새 일정 만들기',
+    emptyMessage: '아직 만든 여행 일정이 없어요.',
+    goCreateButton: '여행 일정 만들러 가기',
+    aiGenerated: 'AI 생성',
+    dayCount: '{{count}}일 일정',
+    confirmDeletePrompt: '삭제할까요?',
+    confirmDeleteButton: '삭제 확정',
+    viewTrip: '{{destination}} 보기',
+    deleteAria: '{{destination}} 일정 삭제',
+    deleteButton: '삭제',
+  },
+  en: {
+    heading: 'My Trips',
+    subheading: 'Trips you’ve made with AI so far.',
+    newTripButton: 'Create New Trip',
+    emptyMessage: 'You haven’t created any trips yet.',
+    goCreateButton: 'Go Create a Trip',
+    aiGenerated: 'AI Generated',
+    dayCount: '{{count}}-day trip',
+    confirmDeletePrompt: 'Delete this?',
+    confirmDeleteButton: 'Confirm Delete',
+    viewTrip: 'View {{destination}}',
+    deleteAria: 'Delete {{destination}} trip',
+    deleteButton: 'Delete',
+  },
+  ja: {
+    heading: 'マイ旅程',
+    subheading: 'これまでAIと一緒に作成したプランです。',
+    newTripButton: '新しいプランを作成',
+    emptyMessage: 'まだ作成したプランがありません。',
+    goCreateButton: 'プランを作成しに行く',
+    aiGenerated: 'AI生成',
+    dayCount: '{{count}}日間のプラン',
+    confirmDeletePrompt: '削除しますか?',
+    confirmDeleteButton: '削除を確定',
+    viewTrip: '{{destination}}を見る',
+    deleteAria: '{{destination}}のプランを削除',
+    deleteButton: '削除',
+  },
+}
