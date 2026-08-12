@@ -33,3 +33,10 @@ lerna-debug.log*
 
 # OS
 Thumbs.db
+
+# .gitignore
+.env
+.env.local
+*.pem
+*.key
+config/secrets.yml
