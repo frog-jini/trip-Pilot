@@ -1,21 +1,25 @@
 // 채팅 UI만 담당하는 순수 프레젠테이션 컴포넌트. 메시지를 해석하고 실제로 일정을 바꾸는 로직은
-// 전혀 모른다 — onSendMessage로 문자열을 넘기면 문자열 답장을 받아서 대화창에 쌓기만 한다.
-// 그래서 같은 컴포넌트를 TripDetailPage(일정 수정 채팅)와 PlanChatPage(대화로 일정 만들기)가
-// 서로 다른 onSendMessage/문구를 주입해서 재사용한다.
+// 전혀 모른다 — onSendMessage로 문자열을 넘기면 ChatReply(번역 함수) 답장을 받아서 대화창에
+// 쌓기만 한다. 그래서 같은 컴포넌트를 TripDetailPage(일정 수정 채팅)와 PlanChatPage(대화로 일정
+// 만들기)가 서로 다른 onSendMessage/문구를 주입해서 재사용한다.
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { useLanguage } from '../../context/languageContextValue'
+import type { ChatReply } from '../../lib/chatReply'
 
-interface ChatMessage {
-  role: 'user' | 'ai'
-  text: string
-}
+type ChatMessage =
+  | { role: 'user'; text: string }
+  // AI 답장은 완성된 문자열이 아니라 ChatReply(번역 키+파라미터를 들고 있는 함수)로 저장해서,
+  // 매 렌더마다 현재 언어의 t()로 다시 조립한다 — 그래야 언어를 바꾸면 이미 화면에 찍힌 과거
+  // 답장도 즉시 새 언어의 문장 틀로 다시 그려진다. 사용자가 채팅에 직접 입력한 활동명 같은 자유
+  // 텍스트는 ChatReply의 params 안에 원문 그대로 남아있으니, 그 부분만은 번역되지 않는다.
+  | { role: 'ai'; reply: ChatReply }
 
 interface ItineraryChatProps {
   // 동기/비동기 둘 다 허용 — 정규식으로 즉시 답하는 경우도 있고, 로컬 LLM 호출처럼 실제로
   // 기다려야 하는 경우도 있어서 호출부가 어느 쪽이든 그대로 쓸 수 있게 했다.
-  onSendMessage: (message: string) => string | Promise<string>
+  onSendMessage: (message: string) => ChatReply | Promise<ChatReply>
   title?: string
   greeting?: string
   placeholder?: string
@@ -30,8 +34,9 @@ export function ItineraryChat({ onSendMessage, title, greeting, placeholder }: I
   const resolvedPlaceholder = placeholder ?? t('plan.chatDefaultPlaceholder')
   // 인사말은 아직 아무도 "말하지 않은" 예시 문구라, 대화 이력(messages)에 넣어 마운트 시점 언어로
   // 얼려버리지 않는다 — 대신 매 렌더마다 resolvedGreeting을 그대로 화면 맨 앞에 그려서, 언어를
-  // 바꾸면 즉시 새 언어로 보이게 한다. 반면 한번 오간 실제 메시지(messages)는 그 시점에 실제로
-  // 주고받은 내용이므로 언어를 바꿔도 소급 번역하지 않는다(의도적으로 그대로 둠).
+  // 바꾸면 즉시 새 언어로 보이게 한다. 한번 오간 실제 AI 답장(messages)도 마찬가지로 언어를
+  // 바꾸면 즉시 새 언어로 다시 그려진다(ChatReply, 위 타입 참고) — 다만 사용자 메시지(user)는
+  // 사용자가 그 언어로 실제로 입력한 원문이라 번역 대상이 아니므로 항상 그대로 남는다.
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
@@ -57,7 +62,7 @@ export function ItineraryChat({ onSendMessage, title, greeting, placeholder }: I
 
     const reply = await onSendMessage(trimmed)
 
-    setMessages((prev) => [...prev, { role: 'ai', text: reply }])
+    setMessages((prev) => [...prev, { role: 'ai', reply }])
     setPending(false)
   }
 
@@ -78,7 +83,7 @@ export function ItineraryChat({ onSendMessage, title, greeting, placeholder }: I
                 : 'max-w-[85%] rounded-2xl rounded-tl-sm bg-ai-100 px-4 py-2.5 text-sm text-ai-800 dark:bg-ai-950 dark:text-ai-200'
             }
           >
-            {message.text}
+            {message.role === 'user' ? message.text : message.reply(t)}
           </p>
         ))}
         {pending ? (

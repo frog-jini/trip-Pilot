@@ -30,6 +30,7 @@ import { getMyPublishedTrip, publishTrip, unpublishTrip, updateCommunityTrip } f
 import { fetchDailyForecast as fetchDailyForecastDefault, type DailyForecast } from '../lib/weather'
 import { isWebGpuSupported, loadEngineWhenSupported, type ChatCompletionMessage, type ChatEngine } from '../lib/aiEngine'
 import { resolveTripChatActionWithAi } from '../lib/tripChatAction'
+import { reply, type ChatReply } from '../lib/chatReply'
 
 const WEATHER_LABEL_KEYS: Record<WeatherKeyword, string> = {
   rain: 'tripDetail.weatherRain',
@@ -60,7 +61,7 @@ export function TripDetailPage({
   const { tripId } = useParams<{ tripId: string }>()
   const navigate = useNavigate()
   const { token } = useAuth()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [trip, setTrip] = useState<SavedTrip | null>(null)
   const [loading, setLoading] = useState(true)
   const [notice, setNotice] = useState<string | null>(null)
@@ -335,18 +336,18 @@ export function TripDetailPage({
     navigate('/trips')
   }
 
-  const CLARIFICATION_MESSAGE = t('tripDetail.clarificationMessage')
+  const CLARIFICATION_MESSAGE = reply('tripDetail.clarificationMessage')
 
   // 아래 세 applyXxx 함수는 "무엇을 할지"가 정해진 다음 실제로 일정을 바꾸는 부분이다.
   // 정규식으로 바로 알아낸 경우와, 아래쪽에서 AI가 구조화된 행동(TripChatAction)으로 해석해준
   // 경우가 똑같은 실행 로직을 타도록 공유해서, 두 경로의 동작이 어긋나지 않게 한다.
 
-  async function applyAddActivity(day: number, activity: string): Promise<string> {
-    if (!trip) return t('tripDetail.tripUnavailable')
+  async function applyAddActivity(day: number, activity: string): Promise<ChatReply> {
+    if (!trip) return reply('tripDetail.tripUnavailable')
 
     const dayExists = trip.itinerary.days.some((d) => d.day === day)
     if (!dayExists) {
-      return t('tripDetail.dayNotInTrip', { day, max: trip.itinerary.days.length })
+      return reply('tripDetail.dayNotInTrip', { day, max: trip.itinerary.days.length })
     }
 
     const currentHistory = trip.history ?? createActivityHistory(trip.itinerary)
@@ -358,24 +359,24 @@ export function TripDetailPage({
     )
 
     if (reachedDailyLimit) {
-      return t('tripDetail.chatDayFull', { day })
+      return reply('tripDetail.chatDayFull', { day })
     }
 
     await persistTripUpdate({ itinerary: nextItinerary, history })
-    return t('tripDetail.noticeActivityAdded', { day, activity })
+    return reply('tripDetail.noticeActivityAdded', { day, activity })
   }
 
   // ✕ 버튼(handleRemoveActivity)과 똑같이 removeActivity()를 재사용해서, 지운 자리에
   // AI가 대체 활동을 자동으로 추천해주는 동작까지 그대로 이어받는다.
-  async function applyRemoveActivity(day: number, activity: string): Promise<string> {
-    if (!trip) return t('tripDetail.tripUnavailable')
+  async function applyRemoveActivity(day: number, activity: string): Promise<ChatReply> {
+    if (!trip) return reply('tripDetail.tripUnavailable')
 
     const targetDay = trip.itinerary.days.find((d) => d.day === day)
     if (!targetDay) {
-      return t('tripDetail.dayNotInTrip', { day, max: trip.itinerary.days.length })
+      return reply('tripDetail.dayNotInTrip', { day, max: trip.itinerary.days.length })
     }
     if (!targetDay.activities.includes(activity)) {
-      return t('tripDetail.chatActivityNotFound', { day, activity })
+      return reply('tripDetail.chatActivityNotFound', { day, activity })
     }
 
     const currentHistory = trip.history ?? createActivityHistory(trip.itinerary)
@@ -389,22 +390,22 @@ export function TripDetailPage({
     await persistTripUpdate({ itinerary: nextItinerary, history })
 
     return addedActivity
-      ? t('tripDetail.chatRemovedWithReplacement', { day, activity, added: addedActivity })
-      : t('tripDetail.chatRemoved', { day, activity })
+      ? reply('tripDetail.chatRemovedWithReplacement', { day, activity, added: addedActivity })
+      : reply('tripDetail.chatRemoved', { day, activity })
   }
 
-  async function applyWeatherAction(day: number, weather: WeatherKeyword): Promise<string> {
-    if (!trip) return t('tripDetail.tripUnavailable')
+  async function applyWeatherAction(day: number, weather: WeatherKeyword): Promise<ChatReply> {
+    if (!trip) return reply('tripDetail.tripUnavailable')
 
     const dayExists = trip.itinerary.days.some((d) => d.day === day)
     if (!dayExists) {
-      return t('tripDetail.dayNotInTrip', { day, max: trip.itinerary.days.length })
+      return reply('tripDetail.dayNotInTrip', { day, max: trip.itinerary.days.length })
     }
 
-    const weatherWord = t(WEATHER_LABEL_KEYS[weather])
-
+    // weatherWord는 날씨 자체도 t()로 번역되는 문구라, 미리 문자열로 굳히지 않고 렌더링 시점의
+    // t()로 다시 풀어야 언어를 바꿨을 때 이 안쪽 단어까지 함께 새 언어로 바뀐다.
     if (weather === 'clear') {
-      return t('tripDetail.chatWeatherClear', { day, weather: weatherWord })
+      return (translate) => translate('tripDetail.chatWeatherClear', { day, weather: translate(WEATHER_LABEL_KEYS[weather]) })
     }
 
     const currentHistory = trip.history ?? createActivityHistory(trip.itinerary)
@@ -412,7 +413,7 @@ export function TripDetailPage({
     if (weather === 'outdoor') {
       const originalDay = generatePlan(trip.values).days.find((d) => d.day === day)
       if (!originalDay) {
-        return t('tripDetail.dayNotInTrip', { day, max: trip.itinerary.days.length })
+        return reply('tripDetail.dayNotInTrip', { day, max: trip.itinerary.days.length })
       }
 
       const days = trip.itinerary.days.map((d) =>
@@ -421,7 +422,8 @@ export function TripDetailPage({
       const nextItinerary = { ...trip.itinerary, days }
       await persistTripUpdate({ itinerary: nextItinerary, history: currentHistory })
 
-      return t('tripDetail.chatWeatherOutdoorRestored', { day, weather: weatherWord })
+      return (translate) =>
+        translate('tripDetail.chatWeatherOutdoorRestored', { day, weather: translate(WEATHER_LABEL_KEYS[weather]) })
     }
 
     const { itinerary: nextItinerary, history, changed } = applyWeatherAdjustment(
@@ -431,12 +433,12 @@ export function TripDetailPage({
     )
 
     if (!changed) {
-      return t('tripDetail.chatWeatherAlreadyIndoor', { day })
+      return reply('tripDetail.chatWeatherAlreadyIndoor', { day })
     }
 
     await persistTripUpdate({ itinerary: nextItinerary, history })
 
-    return t('tripDetail.chatWeatherAdjusted', { day, weather: weatherWord })
+    return (translate) => translate('tripDetail.chatWeatherAdjusted', { day, weather: translate(WEATHER_LABEL_KEYS[weather]) })
   }
 
   /**
@@ -447,20 +449,20 @@ export function TripDetailPage({
    * 실제 일정 변경은 항상 위의 applyXxx가 맡으므로, AI가 이상한 값을 내도 실행 단계에서
    * 유효성 검사(일차 존재 여부, 활동 존재 여부 등)를 다시 거친다.
    */
-  async function resolveChatReply(message: string): Promise<string> {
-    if (!trip) return t('tripDetail.tripUnavailable')
+  async function resolveChatReply(message: string): Promise<ChatReply> {
+    if (!trip) return reply('tripDetail.tripUnavailable')
 
-    const addIntent = parseAddActivityIntent(message)
+    const addIntent = parseAddActivityIntent(message, language)
     if (addIntent.day !== null && addIntent.activity) {
       return applyAddActivity(addIntent.day, addIntent.activity)
     }
 
-    const removeIntent = parseRemoveActivityIntent(message)
+    const removeIntent = parseRemoveActivityIntent(message, language)
     if (removeIntent.day !== null && removeIntent.activity) {
       return applyRemoveActivity(removeIntent.day, removeIntent.activity)
     }
 
-    const weatherIntent = parseWeatherIntent(message)
+    const weatherIntent = parseWeatherIntent(message, language)
     if (weatherIntent.day !== null && weatherIntent.weather !== null) {
       return applyWeatherAction(weatherIntent.day, weatherIntent.weather)
     }
@@ -486,19 +488,23 @@ export function TripDetailPage({
   // 최근 4턴(사용자+AI 합쳐 8개 메시지)만 유지한다.
   const CHAT_HISTORY_TURNS_TO_KEEP = 8
 
-  async function handleChatMessage(message: string): Promise<string> {
-    if (!trip) return t('tripDetail.tripUnavailable')
+  async function handleChatMessage(message: string): Promise<ChatReply> {
+    if (!trip) return reply('tripDetail.tripUnavailable')
 
     const priorMessages = chatHistoryRef.current
-    const reply = await resolveChatReply(message)
+    const chatReply = await resolveChatReply(message)
+    // AI에게 넘길 대화 맥락은 그 턴에 실제로 화면에 보여준 문장의 스냅샷이면 충분하다 —
+    // 이후 언어를 바꿔도 이 기록 자체를 다시 번역할 필요는 없다(그 목적은 오직 pronoun 참조
+    // 해석을 위한 참고 맥락이라, 화면에 보이는 과거 메시지 재번역과는 별개다).
+    const chatReplyText = chatReply(t)
 
     chatHistoryRef.current = [
       ...priorMessages,
       { role: 'user' as const, content: message },
-      { role: 'assistant' as const, content: reply },
+      { role: 'assistant' as const, content: chatReplyText },
     ].slice(-CHAT_HISTORY_TURNS_TO_KEEP)
 
-    return reply
+    return chatReply
   }
 
   const favoriteActivities = trip

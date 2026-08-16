@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', system-ui,
     'Segoe UI', Roboto, sans-serif;
@@ -47,7 +49,7 @@
 @layer base {
   html {
     font-family: var(--font-sans);
-    color-scheme: light dark;
+    color-scheme: dark;
   }
 
   body {

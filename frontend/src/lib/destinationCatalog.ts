@@ -1515,6 +1515,80 @@ const DESTINATION_ALIASES: [string, string][] = [
   // 다른 문자 체계(한자 등)로 저장된 목적지 — 실제로 DB에 이런 표기로 저장된 여행이 있어서,
   // 카탈로그 매칭 및 번역 모두 이 표기를 별칭으로 인식해야 한다.
   ['東京', '일본 도쿄'],
+
+  // 영어 표기 — /plan/chat 채팅을 영어로 쓰는 사용자를 위한 별칭. findCatalogKey()는 언어와
+  // 무관하게 텍스트에 별칭이 포함되는지만 보므로, 언어별 파서를 따로 둘 필요 없이 별칭만
+  // 추가하면 된다.
+  ['tokyo', '일본 도쿄'],
+  ['osaka', '오사카'],
+  ['jeju', '제주'],
+  ['bangkok', '방콕'],
+  ['paris', '파리'],
+  ['da nang', '다낭'],
+  ['danang', '다낭'],
+  ['new york', '뉴욕'],
+  ['london', '런던'],
+  ['rome', '로마'],
+  ['sydney', '시드니'],
+  ['nagoya', '나고야'],
+  ['kyoto', '교토'],
+  ['fukuoka', '후쿠오카'],
+  ['seoul', '서울'],
+  ['busan', '부산'],
+  ['hong kong', '홍콩'],
+  ['taipei', '타이베이'],
+  ['shanghai', '상하이'],
+  ['singapore', '싱가포르'],
+  ['kuala lumpur', '쿠알라룸푸르'],
+  ['bali', '발리'],
+  ['cebu', '세부'],
+  ['hanoi', '하노이'],
+  ['ho chi minh', '호치민'],
+  ['saigon', '호치민'],
+  ['chiang mai', '치앙마이'],
+  ['japan', '일본 도쿄'],
+  ['korea', '서울'],
+  ['china', '상하이'],
+  ['malaysia', '쿠알라룸푸르'],
+  ['indonesia', '발리'],
+  ['philippines', '세부'],
+  ['vietnam', '다낭'],
+  ['thailand', '방콕'],
+
+  // 일본어 표기
+  ['大阪', '오사카'],
+  ['済州島', '제주'],
+  ['済州', '제주'],
+  ['バンコク', '방콕'],
+  ['パリ', '파리'],
+  ['ダナン', '다낭'],
+  ['ニューヨーク', '뉴욕'],
+  ['ロンドン', '런던'],
+  ['ローマ', '로마'],
+  ['シドニー', '시드니'],
+  ['名古屋', '나고야'],
+  ['京都', '교토'],
+  ['福岡', '후쿠오카'],
+  ['ソウル', '서울'],
+  ['釜山', '부산'],
+  ['香港', '홍콩'],
+  ['台北', '타이베이'],
+  ['上海', '상하이'],
+  ['シンガポール', '싱가포르'],
+  ['クアラルンプール', '쿠알라룸푸르'],
+  ['バリ', '발리'],
+  ['セブ', '세부'],
+  ['ハノイ', '하노이'],
+  ['ホーチミン', '호치민'],
+  ['チェンマイ', '치앙마이'],
+  ['日本', '일본 도쿄'],
+  ['韓国', '서울'],
+  ['中国', '상하이'],
+  ['マレーシア', '쿠알라룸푸르'],
+  ['インドネシア', '발리'],
+  ['フィリピン', '세부'],
+  ['ベトナム', '다낭'],
+  ['タイ', '방콕'],
 ]
 
 /** Resolves free-form text (a short alias, the full name, or text containing either) to the canonical catalog key, if any. */
@@ -1522,8 +1596,11 @@ export function findCatalogKey(destination: string): string | null {
   const trimmed = destination.trim()
   if (CATALOG[trimmed]) return trimmed
 
+  // 영어 별칭은 소문자로 등록돼 있으므로, 대소문자를 섞어 쓴 입력("Tokyo")도 잡히도록 비교는
+  // 소문자로 맞춘다 — 한글/일본어 별칭에는 대소문자 개념이 없어 영향이 없다.
+  const lowerTrimmed = trimmed.toLowerCase()
   const byLongestAliasFirst = [...DESTINATION_ALIASES].sort((a, b) => b[0].length - a[0].length)
-  const aliasMatch = byLongestAliasFirst.find(([alias]) => trimmed.includes(alias))
+  const aliasMatch = byLongestAliasFirst.find(([alias]) => lowerTrimmed.includes(alias.toLowerCase()))
   if (aliasMatch) return aliasMatch[1]
 
   return Object.keys(CATALOG).find((key) => trimmed.includes(key)) ?? null

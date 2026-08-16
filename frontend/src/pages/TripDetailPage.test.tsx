@@ -8,6 +8,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { InitProgressReport } from '@mlc-ai/web-llm'
 import { TripDetailPage } from './TripDetailPage'
 import { AuthProvider } from '../context/AuthContext'
+import { LanguageProvider } from '../context/LanguageContext'
 import { writeStoredToken, writeStoredUser } from '../lib/authStorage'
 import { createActivityHistory, generatePlan } from '../lib/generatePlan'
 import { addTrip } from '../lib/tripsStorage'
@@ -63,9 +64,101 @@ function renderAt(
   )
 }
 
+function renderAtWithLanguageSwitching(
+  server: FakeApiServer,
+  path: string,
+  loadEngine?: (onProgress?: (report: InitProgressReport) => void) => Promise<ChatEngine>,
+  isSupported?: () => boolean,
+) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <LanguageProvider>
+        <AuthProvider>
+          <Routes>
+            <Route
+              path="/trips/:tripId"
+              element={<TripDetailPage fetchImpl={server.fetchImpl} loadEngine={loadEngine} isSupported={isSupported} />}
+            />
+            <Route path="/trips" element={<div>목록 페이지</div>} />
+          </Routes>
+        </AuthProvider>
+      </LanguageProvider>
+    </MemoryRouter>,
+  )
+}
+
 describe('TripDetailPage', () => {
   afterEach(() => {
     localStorage.clear()
+  })
+
+  // Regression: reported that after switching the UI language to English and back to Korean
+  // mid-conversation, the chat kept replying in English for the day/weather chat too — i.e. the
+  // reply language got "stuck" on whatever was active for the first message in the session.
+  it('replies to the weather chat in the currently selected language, even after switching away and back to it', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+
+    renderAtWithLanguageSwitching(server, `/trips/${trip.id}`)
+
+    await user.click(screen.getByRole('button', { name: 'English' }))
+    await user.type(await screen.findByLabelText('Message input'), 'first day is sunny')
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+    expect(await screen.findByText(/I’ll leave the plan as is/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '한국어' }))
+    await user.type(screen.getByLabelText('메시지 입력'), '둘째 날은 날씨가 맑대')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    // Both replies now show in Korean — the new one, and the earlier (English) one re-rendered
+    // in the newly selected language, per the user's explicit request to retranslate history.
+    expect(await screen.findByText(/1일차는 맑은 날씨라니 잘 됐네요/)).toBeInTheDocument()
+    expect(screen.getByText(/2일차는 맑은 날씨라니 잘 됐네요/)).toBeInTheDocument()
+    expect(screen.queryByText(/I’ll leave the plan as is/)).not.toBeInTheDocument()
+  })
+
+  // Exact repro reported by the user: "2일차에 디즈니랜드로 가줘" doesn't contain any of
+  // KO_CONFIG.addKeyword's words (추가|넣어|포함), so the regex parser can't resolve it and this
+  // falls through to the local AI engine path (resolveTripChatActionWithAi), unlike the weather
+  // test above which the regex parser resolves directly. Checking whether *that* path is the one
+  // that stays stuck on the language active when the AI engine first loaded.
+  it('resolves free-form add-activity requests via the AI engine in the currently selected language, and re-renders past replies too when the language changes', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+
+    const complete = vi.fn().mockResolvedValue(JSON.stringify({ action: 'add_activity', day: 2, activity: 'Disneyland' }))
+    const enginePromise = Promise.resolve({ complete })
+    const loadEngine = vi.fn().mockReturnValue(enginePromise)
+
+    renderAtWithLanguageSwitching(server, `/trips/${trip.id}`, loadEngine, () => true)
+    await act(async () => {
+      await enginePromise
+    })
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '2일차에 디즈니랜드로 가줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(/2일차에.*Disneyland.*추가했어요/)).toBeInTheDocument()
+
+    // Switching languages must re-render that already-sent reply in the new language too — not
+    // just replies to messages sent after the switch (the user's exact reported repro: ask the
+    // AI to add Disneyland on day 2, then switch languages, and find the reply still Korean).
+    await user.click(screen.getByRole('button', { name: 'English' }))
+    expect(await screen.findByText(/Added "Disneyland" to day 2/)).toBeInTheDocument()
+    expect(screen.queryByText(/추가했어요/)).not.toBeInTheDocument()
   })
 
   it('renders the itinerary for the trip matching the URL', async () => {

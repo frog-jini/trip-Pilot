@@ -67,6 +67,26 @@ describe('parseWeatherIntent', () => {
   it('still recognizes the day when only an outdoor request follows, with no other weather word', () => {
     expect(parseWeatherIntent('둘째 날은 눈이 온다더니 실외로 해줘')).toEqual({ day: 2, weather: 'outdoor' })
   })
+
+  it('parses a numeric day with 日目 and rain in Japanese', () => {
+    expect(parseWeatherIntent('2日目に雨が降りそう', 'ja')).toEqual({ day: 2, weather: 'rain' })
+  })
+
+  it('parses an ordinal day word with snow in Japanese', () => {
+    expect(parseWeatherIntent('初日は雪が降るらしい', 'ja')).toEqual({ day: 1, weather: 'snow' })
+  })
+
+  it('recognizes a full-width (全角) numeric day in Japanese', () => {
+    expect(parseWeatherIntent('２日目に雨が降りそう', 'ja')).toEqual({ day: 2, weather: 'rain' })
+  })
+
+  it('parses a numeric day with "day" and rain in English', () => {
+    expect(parseWeatherIntent('It looks like it will rain on day 2', 'en')).toEqual({ day: 2, weather: 'rain' })
+  })
+
+  it('parses an ordinal day word with snow in English', () => {
+    expect(parseWeatherIntent('snow on the second day', 'en')).toEqual({ day: 2, weather: 'snow' })
+  })
 })
 
 describe('parseAddActivityIntent', () => {
@@ -97,6 +117,17 @@ describe('parseAddActivityIntent', () => {
   it('returns null day when no day reference is present', () => {
     expect(parseAddActivityIntent('디즈니랜드 추가해줘')).toEqual({ day: null, activity: '디즈니랜드' })
   })
+
+  it('parses a numeric day and an activity to add in Japanese', () => {
+    expect(parseAddActivityIntent('2日目にディズニーランドを追加して', 'ja')).toEqual({
+      day: 2,
+      activity: 'ディズニーランド',
+    })
+  })
+
+  it('parses a numeric day and an activity to add in English', () => {
+    expect(parseAddActivityIntent('add Disneyland on day 2', 'en')).toEqual({ day: 2, activity: 'Disneyland' })
+  })
 })
 
 describe('parseRemoveActivityIntent', () => {
@@ -126,5 +157,19 @@ describe('parseRemoveActivityIntent', () => {
 
   it('returns null day when no day reference is present', () => {
     expect(parseRemoveActivityIntent('디즈니랜드 삭제해줘')).toEqual({ day: null, activity: '디즈니랜드' })
+  })
+
+  it('parses a numeric day and an activity to remove in Japanese', () => {
+    expect(parseRemoveActivityIntent('2日目にディズニーランドを削除して', 'ja')).toEqual({
+      day: 2,
+      activity: 'ディズニーランド',
+    })
+  })
+
+  it('parses a numeric day and an activity to remove in English', () => {
+    expect(parseRemoveActivityIntent('remove Disneyland on day 2', 'en')).toEqual({
+      day: 2,
+      activity: 'Disneyland',
+    })
   })
 })

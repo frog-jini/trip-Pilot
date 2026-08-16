@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { PlanChatPage } from './PlanChatPage'
 import { AuthProvider } from '../context/AuthContext'
+import { LanguageProvider } from '../context/LanguageContext'
 import { writeStoredToken, writeStoredUser } from '../lib/authStorage'
 import { createFakeTripsServer, type FakeTripsServer } from '../test/fakeTripsServer'
 import type { ChatEngine } from '../lib/aiEngine'
@@ -38,9 +39,72 @@ function renderPlanChatPage(
   )
 }
 
+function renderPlanChatPageWithLanguageSwitching(server: FakeTripsServer) {
+  return render(
+    <MemoryRouter initialEntries={['/plan/chat']}>
+      <LanguageProvider>
+        <AuthProvider>
+          <Routes>
+            <Route path="/plan/chat" element={<PlanChatPage fetchImpl={server.fetchImpl} />} />
+          </Routes>
+        </AuthProvider>
+      </LanguageProvider>
+    </MemoryRouter>,
+  )
+}
+
 describe('PlanChatPage', () => {
   afterEach(() => {
     localStorage.clear()
+  })
+
+  // Regression: reported that after switching UI language to English and back to Korean
+  // mid-conversation, the chat kept replying in English — i.e. the reply text got "stuck" on
+  // whatever language was active for the *first* message, instead of tracking the currently
+  // selected language for each new message.
+  it('replies in the currently selected language, even after switching away and back to it', async () => {
+    const user = userEvent.setup()
+    signIn()
+    renderPlanChatPageWithLanguageSwitching(createFakeTripsServer())
+
+    await user.click(screen.getByRole('button', { name: 'English' }))
+    await user.type(screen.getByLabelText('Message input'), 'hi')
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+    expect(await screen.findByText(/Where would you like to travel/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '한국어' }))
+    await user.type(screen.getByLabelText('메시지 입력'), '도쿄로 가고 싶어')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/몇 명/)).toBeInTheDocument()
+    expect(screen.queryByText(/how many people/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps tracking the currently selected language across every switch, not just en→ko', async () => {
+    const user = userEvent.setup()
+    signIn()
+    renderPlanChatPageWithLanguageSwitching(createFakeTripsServer())
+
+    // ko (default) → ja
+    await user.click(screen.getByRole('button', { name: '日本語' }))
+    await user.type(screen.getByLabelText('メッセージ入力'), 'こんにちは')
+    await user.click(screen.getByRole('button', { name: '送信' }))
+    expect(await screen.findByText(/どこへ旅行したいですか/)).toBeInTheDocument()
+
+    // ja → en: the earlier ja reply re-renders in English too (same question, retranslated),
+    // so there are two matching bubbles now — that's the intended retranslation behavior.
+    await user.click(screen.getByRole('button', { name: 'English' }))
+    await user.type(screen.getByLabelText('Message input'), 'hello')
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+    expect(await screen.findAllByText(/Where would you like to travel/)).toHaveLength(2)
+    expect(screen.queryByText(/どこへ旅行したいですか/)).not.toBeInTheDocument()
+
+    // en → ko: all three replies so far re-render in Korean.
+    await user.click(screen.getByRole('button', { name: '한국어' }))
+    await user.type(screen.getByLabelText('메시지 입력'), '안녕')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findAllByText(/어디로 여행 가고 싶으세요/)).toHaveLength(3)
+    expect(screen.queryByText(/Where would you like to travel/)).not.toBeInTheDocument()
   })
 
   it('renders the heading and an AI chat with no itinerary table shown up front', () => {

@@ -73,6 +73,100 @@ describe('parseTripPlanMessage', () => {
   it('recognizes destination aliases such as 제주도 for 제주', () => {
     expect(parseTripPlanMessage('제주도 여행', baseValues()).destination).toBe('제주')
   })
+
+  it('applies a bare-number reply to travelers when that is the pending question', () => {
+    const current: TripPlanFormValues = { ...baseValues(), destination: '일본 도쿄' }
+    expect(parseTripPlanMessage('3', current).travelers).toBe('3')
+  })
+
+  it('applies a bare-number reply to budget when that is the pending question', () => {
+    const current: TripPlanFormValues = { ...baseValues(), destination: '일본 도쿄', travelers: '2' }
+    expect(parseTripPlanMessage('100', current).budget).toBe('100')
+  })
+
+  it('does not apply a bare number to travelers when destination is still the pending question', () => {
+    expect(parseTripPlanMessage('3', baseValues()).travelers).toBe('')
+  })
+
+  it('does not mistake a duration number for the pending travelers answer', () => {
+    const current: TripPlanFormValues = { ...baseValues(), destination: '일본 도쿄' }
+    const result = parseTripPlanMessage('2박 3일이요', current)
+    expect(result.duration).toBe('2박 3일')
+    expect(result.travelers).toBe('')
+  })
+})
+
+describe('parseTripPlanMessage in English', () => {
+  it('extracts a known destination', () => {
+    expect(parseTripPlanMessage('I want to go to Tokyo', baseValues(), 'en').destination).toBe('일본 도쿄')
+  })
+
+  it('extracts duration regardless of nights/days order', () => {
+    expect(parseTripPlanMessage('2 nights 3 days trip', baseValues(), 'en').duration).toBe('2박 3일')
+    expect(parseTripPlanMessage('3 days 2 nights trip', baseValues(), 'en').duration).toBe('2박 3일')
+  })
+
+  it('extracts traveler count', () => {
+    expect(parseTripPlanMessage('3 people', baseValues(), 'en').travelers).toBe('3')
+  })
+
+  it('extracts a travel style', () => {
+    expect(parseTripPlanMessage('mostly shopping please', baseValues(), 'en').styles).toEqual(['쇼핑 중심'])
+  })
+
+  it('applies a bare-number reply to travelers when that is the pending question', () => {
+    const current: TripPlanFormValues = { ...baseValues(), destination: '일본 도쿄' }
+    expect(parseTripPlanMessage('3', current, 'en').travelers).toBe('3')
+  })
+
+  it('extracts budget from a total KRW amount (matching the en questionBudget/placeholder prompt)', () => {
+    expect(parseTripPlanMessage('budget 1,000,000 KRW', baseValues(), 'en').budget).toBe('100')
+  })
+
+  it('also accepts budget answered as a total amount without commas', () => {
+    expect(parseTripPlanMessage('budget is 1000000 won', baseValues(), 'en').budget).toBe('100')
+  })
+
+  it('also accepts budget answered in "man won" units', () => {
+    expect(parseTripPlanMessage('budget is 100 man won', baseValues(), 'en').budget).toBe('100')
+  })
+})
+
+describe('parseTripPlanMessage in Japanese', () => {
+  it('extracts a known destination', () => {
+    expect(parseTripPlanMessage('大阪に行きたいです', baseValues(), 'ja').destination).toBe('오사카')
+  })
+
+  it('extracts duration in N泊M日 form', () => {
+    expect(parseTripPlanMessage('2泊3日で行きたい', baseValues(), 'ja').duration).toBe('2박 3일')
+  })
+
+  it('extracts traveler count', () => {
+    expect(parseTripPlanMessage('3人で行きます', baseValues(), 'ja').travelers).toBe('3')
+  })
+
+  it('extracts a travel style', () => {
+    expect(parseTripPlanMessage('グルメ中心でお願いします', baseValues(), 'ja').styles).toEqual(['맛집 중심'])
+  })
+
+  it('applies a bare-number reply to travelers when that is the pending question', () => {
+    const current: TripPlanFormValues = { ...baseValues(), destination: '일본 도쿄' }
+    expect(parseTripPlanMessage('3', current, 'ja').travelers).toBe('3')
+  })
+
+  it('extracts budget in 万ウォン units (matching the ja questionBudget prompt)', () => {
+    expect(parseTripPlanMessage('予算は100万ウォンです', baseValues(), 'ja').budget).toBe('100')
+  })
+
+  it('also accepts budget answered in 万円', () => {
+    expect(parseTripPlanMessage('予算は100万円です', baseValues(), 'ja').budget).toBe('100')
+  })
+
+  it('recognizes full-width (全角) digits', () => {
+    const result = parseTripPlanMessage('３人で、予算は１００万ウォンです', baseValues(), 'ja')
+    expect(result.travelers).toBe('3')
+    expect(result.budget).toBe('100')
+  })
 })
 
 describe('nextTripPlanQuestion', () => {

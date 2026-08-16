@@ -18,6 +18,7 @@ import {
 import { todayIso } from '../lib/dateUtils'
 import { emptyTripPlanFormValues, type TripPlanFormValues } from '../lib/tripPlan'
 import { isWebGpuSupported, loadEngineWhenSupported, type ChatEngine } from '../lib/aiEngine'
+import { reply, type ChatReply } from '../lib/chatReply'
 
 // /plan/chat 화면. 폼 대신 채팅으로 여행 조건(목적지·기간·인원·예산·스타일)을 채워서 일정을 만든다.
 // 조건 추출은 항상 규칙 기반 파서(tripPlanChat.ts의 parseTripPlanMessage)가 먼저 시도하고,
@@ -39,7 +40,7 @@ export function PlanChatPage({
 }: PlanChatPageProps = {}) {
   const navigate = useNavigate()
   const { token } = useAuth()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const greeting = t('plan.chatPlanGreeting')
   const [values, setValues] = useState<TripPlanFormValues>(() => ({
     ...emptyTripPlanFormValues,
@@ -73,18 +74,23 @@ export function PlanChatPage({
     }
   }, [loadEngine, isSupported])
 
-  async function handleSendMessage(message: string): Promise<string> {
+  async function handleSendMessage(message: string): Promise<ChatReply> {
     // 엔진이 아직 로딩 중이거나 이 브라우저에서 아예 지원되지 않으면 규칙 기반 파서만 쓴다 —
     // parseTripPlanMessageWithAi 내부적으로도 규칙 기반을 먼저 시도하고 AI는 부족한 값만
     // 채우는 보너스 역할이라, AI가 없어도 기능이 완전히 죽지는 않는다.
     const updated = engineRef.current
-      ? await parseTripPlanMessageWithAi(message, values, (messages) => engineRef.current!.complete(messages))
-      : parseTripPlanMessage(message, values)
+      ? await parseTripPlanMessageWithAi(
+          message,
+          values,
+          (messages) => engineRef.current!.complete(messages),
+          language,
+        )
+      : parseTripPlanMessage(message, values, language)
     setValues(updated)
 
     if (!isTripPlanReady(updated)) {
       const questionKey = nextTripPlanQuestion(updated)
-      return questionKey ? t(questionKey) : greeting
+      return reply(questionKey ?? 'plan.chatPlanGreeting')
     }
 
     const itinerary = generatePlan(updated)
@@ -92,7 +98,7 @@ export function PlanChatPage({
     const trip = await addTrip(token, { itinerary, values: updated, history }, fetchImpl)
     navigate(`/trips/${trip.id}`)
 
-    return t('plan.chatPlanCompleted')
+    return reply('plan.chatPlanCompleted')
   }
 
   return (

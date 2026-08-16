@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { ItineraryChat } from './ItineraryChat'
 import { LanguageProvider } from '../../context/LanguageContext'
 import { LanguageSwitcher } from '../layout/LanguageSwitcher'
+import { reply, type ChatReply } from '../../lib/chatReply'
 
 describe('ItineraryChat', () => {
   afterEach(() => {
@@ -19,7 +20,7 @@ describe('ItineraryChat', () => {
 
   it('sends the trimmed message, shows it, and displays the AI reply', async () => {
     const user = userEvent.setup()
-    const onSendMessage = vi.fn().mockReturnValue('실외 관광 대신 쇼핑몰과 실내 관광 위주로 변경했어요.')
+    const onSendMessage = vi.fn().mockReturnValue(() => '실외 관광 대신 쇼핑몰과 실내 관광 위주로 변경했어요.')
     render(<ItineraryChat onSendMessage={onSendMessage} />)
 
     await user.type(screen.getByLabelText('메시지 입력'), '  둘째 날은 비가 올 것 같아  ')
@@ -32,7 +33,7 @@ describe('ItineraryChat', () => {
 
   it('clears the input after sending', async () => {
     const user = userEvent.setup()
-    render(<ItineraryChat onSendMessage={vi.fn().mockReturnValue('알겠어요.')} />)
+    render(<ItineraryChat onSendMessage={vi.fn().mockReturnValue(() => '알겠어요.')} />)
 
     const input = screen.getByLabelText('메시지 입력')
     await user.type(input, '안녕')
@@ -44,7 +45,7 @@ describe('ItineraryChat', () => {
   it('scrolls the chat log to the latest message after sending', async () => {
     const user = userEvent.setup()
     const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {})
-    render(<ItineraryChat onSendMessage={vi.fn().mockReturnValue('답장')} />)
+    render(<ItineraryChat onSendMessage={vi.fn().mockReturnValue(() => '답장')} />)
 
     await user.type(screen.getByLabelText('메시지 입력'), '안녕')
     await user.click(screen.getByRole('button', { name: '보내기' }))
@@ -68,9 +69,9 @@ describe('ItineraryChat', () => {
   // 다른 곳은 동기) resolve를 나중에 직접 호출해 "응답 대기 중" 상태를 실제로 붙잡아본다.
   it('shows a pending indicator while awaiting an async reply, then replaces it with the reply', async () => {
     const user = userEvent.setup()
-    let resolveReply: (value: string) => void = () => {}
+    let resolveReply: (value: ChatReply) => void = () => {}
     const onSendMessage = vi.fn().mockReturnValue(
-      new Promise<string>((resolve) => {
+      new Promise<ChatReply>((resolve) => {
         resolveReply = resolve
       }),
     )
@@ -81,7 +82,7 @@ describe('ItineraryChat', () => {
 
     expect(screen.getByLabelText('AI 응답 대기 중')).toBeInTheDocument()
 
-    resolveReply('어디로 여행 가고 싶으세요?')
+    resolveReply(() => '어디로 여행 가고 싶으세요?')
 
     await waitFor(() => expect(screen.getByText('어디로 여행 가고 싶으세요?')).toBeInTheDocument())
     expect(screen.queryByLabelText('AI 응답 대기 중')).not.toBeInTheDocument()
@@ -89,9 +90,9 @@ describe('ItineraryChat', () => {
 
   it('disables the send button while a reply is pending', async () => {
     const user = userEvent.setup()
-    let resolveReply: (value: string) => void = () => {}
+    let resolveReply: (value: ChatReply) => void = () => {}
     const onSendMessage = vi.fn().mockReturnValue(
-      new Promise<string>((resolve) => {
+      new Promise<ChatReply>((resolve) => {
         resolveReply = resolve
       }),
     )
@@ -102,7 +103,7 @@ describe('ItineraryChat', () => {
 
     expect(screen.getByRole('button', { name: '보내기' })).toBeDisabled()
 
-    resolveReply('네')
+    resolveReply(() => '네')
 
     await waitFor(() => expect(screen.getByRole('button', { name: '보내기' })).not.toBeDisabled())
   })
@@ -157,11 +158,11 @@ describe('ItineraryChat', () => {
     expect(screen.getByText(/Let me know if the weather changes/)).toBeInTheDocument()
   })
 
-  it('keeps an already-sent message in the language it was sent in, even after switching languages', async () => {
-    // 이미 오간 대화 내용은 "그 시점의 언어로 실제로 말한 것"이라 언어를 바꿔도 소급 번역되지
-    // 않는게 맞다 — 아직 안 보낸 예시 인사말과는 다르게 취급된다.
+  it('keeps an already-sent user message exactly as typed, even after switching languages', async () => {
+    // 사용자 메시지는 그 언어로 실제로 입력한 원문이라 번역 대상이 아니다 — 언어를 바꿔도
+    // 그대로 남아야 한다. (AI 답장 쪽은 아래 테스트에서 다룬다.)
     const user = userEvent.setup()
-    const onSendMessage = vi.fn().mockReturnValue('알겠어요.')
+    const onSendMessage = vi.fn().mockReturnValue(reply('tripDetail.clarificationMessage'))
     render(
       <LanguageProvider>
         <LanguageSwitcher />
@@ -171,11 +172,36 @@ describe('ItineraryChat', () => {
 
     await user.type(screen.getByLabelText('메시지 입력'), '안녕')
     await user.click(screen.getByRole('button', { name: '보내기' }))
-    expect(await screen.findByText('알겠어요.')).toBeInTheDocument()
+    await screen.findByText('안녕')
 
     await user.click(screen.getByRole('button', { name: 'English' }))
 
     expect(screen.getByText('안녕')).toBeInTheDocument()
-    expect(screen.getByText('알겠어요.')).toBeInTheDocument()
+  })
+
+  it('re-renders an already-sent AI reply in the newly selected language, keeping raw user-provided text untranslated inside it', async () => {
+    // Regression: previously AI replies were stored as plain, already-translated strings, so an
+    // already-sent reply stayed frozen in whatever language was active when it was first shown —
+    // even brand new replies after switching kept showing the old language for messages sent
+    // through the local-AI path. Storing a ChatReply (translation key + params) instead means the
+    // sentence template is rebuilt in the new language on every render, while free text the user
+    // actually typed (like an activity name) is carried through unchanged inside the params.
+    const user = userEvent.setup()
+    const onSendMessage = vi.fn().mockReturnValue(reply('tripDetail.noticeActivityAdded', { day: 2, activity: '디즈니랜드' }))
+    render(
+      <LanguageProvider>
+        <LanguageSwitcher />
+        <ItineraryChat onSendMessage={onSendMessage} />
+      </LanguageProvider>,
+    )
+
+    await user.type(screen.getByLabelText('메시지 입력'), '2일차에 디즈니랜드로 가줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(/2일차에.*디즈니랜드.*추가했어요/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'English' }))
+
+    expect(screen.getByText(/Added "디즈니랜드" to day 2/)).toBeInTheDocument()
+    expect(screen.queryByText(/추가했어요/)).not.toBeInTheDocument()
   })
 })

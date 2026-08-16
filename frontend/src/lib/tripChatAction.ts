@@ -24,18 +24,22 @@ const WEATHER_VALUES: readonly WeatherKeyword[] = [
   'outdoor',
 ]
 
-const ACTION_SCHEMA = `가능한 행동 중 하나를 정확히 하나의 JSON 객체로만 출력하세요. 설명 문장은 절대 쓰지 마세요.
+// 사용자는 한국어/영어/일본어 중 어떤 언어로도 메시지를 보낼 수 있다. 시스템 프롬프트를 특정
+// 언어로 고정하면 모델이 그 언어에만 반응하도록 편향될 수 있어, 지시문 자체는 언어 중립적인
+// 영어로 쓰고 "사용자 메시지가 어떤 언어든 이해하라"를 명시한다. 필드/enum 이름은 원래도 영어라
+// 이 프롬프트를 이해하는 모델이라면 응답 형식은 그대로 지킨다.
+const ACTION_SCHEMA = `The user's message may be written in Korean, English, or Japanese. Understand it regardless of language, then output exactly one of the following actions as a single JSON object. Never output explanatory text.
 
-{ "action": "add_activity", "day": 일차(숫자), "activity": 추가할 활동명(문자열) }
-{ "action": "remove_activity", "day": 일차(숫자), "activity": 삭제할 활동명(문자열, 아래 "현재 일정"에 실제로 있는 이름 중에서 고르세요) }
-{ "action": "weather", "day": 일차(숫자), "weather": "rain" | "snow" | "storm" | "dust" | "heat" | "cold" | "clear" | "outdoor" 중 하나 }
+{ "action": "add_activity", "day": <day number>, "activity": <name of the activity to add> }
+{ "action": "remove_activity", "day": <day number>, "activity": <name of the activity to remove, chosen from the names actually listed under "Current itinerary" below> }
+{ "action": "weather", "day": <day number>, "weather": one of "rain" | "snow" | "storm" | "dust" | "heat" | "cold" | "clear" | "outdoor" }
 { "action": "unknown" }
 
-- 활동을 일정에 넣어달라는 요청이면 add_activity
-- 활동을 일정에서 빼달라는 요청이면 remove_activity
-- 날씨 때문에 일정을 바꿔달라는 요청이면 weather (맑음/화창은 "clear", 실내에서 다시 실외로 되돌리는 요청은 "outdoor")
-- 이전 대화에서 언급된 일차나 활동을 대명사로 가리키면(예: "거기", "그거") 대화 맥락에서 유추하세요
-- 무슨 뜻인지 확실하지 않으면 반드시 unknown`
+- If the request asks to add an activity to the itinerary, use add_activity.
+- If the request asks to remove an activity from the itinerary, use remove_activity.
+- If the request asks to change the itinerary because of weather, use weather ("clear" for sunny/fine weather, "outdoor" for a request to switch back to outdoor activities).
+- If the request refers to a day or activity mentioned earlier in the conversation using a pronoun (e.g. "there", "it"), infer it from the conversation context.
+- If the intent is not clear, always answer unknown.`
 
 /**
  * 매 호출마다 현재 일정 스냅샷을 시스템 프롬프트에 새로 채워 넣는다 — 활동이 추가/삭제될 때마다
@@ -46,7 +50,7 @@ export function buildTripChatSystemPrompt(itinerary: TripItinerary): string {
     .map((day) => `${day.day}일차: ${day.activities.join(', ') || '(활동 없음)'}`)
     .join('\n')
 
-  return `당신은 여행 일정 편집을 도와주는 assistant입니다.\n\n현재 일정:\n${scheduleSummary}\n\n${ACTION_SCHEMA}`
+  return `You are an assistant that helps edit a trip itinerary.\n\nCurrent itinerary:\n${scheduleSummary}\n\n${ACTION_SCHEMA}`
 }
 
 /** 모델이 뱉은 원문 문자열을 검증된 TripChatAction으로 바꾼다. 형식이 조금이라도 어긋나면 null. */
