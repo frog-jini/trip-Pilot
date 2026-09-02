@@ -14,6 +14,7 @@ export const headerDictionary: Record<Language, Record<string, string>> = {
     login: '로그인',
     signupCta: '무료로 시작하기',
     languageSwitcherLabel: '언어 선택',
+    menu: '메뉴',
   },
   en: {
     features: 'Features',
@@ -27,6 +28,7 @@ export const headerDictionary: Record<Language, Record<string, string>> = {
     login: 'Log in',
     signupCta: 'Start for Free',
     languageSwitcherLabel: 'Language selection',
+    menu: 'Menu',
   },
   ja: {
     features: '機能',
@@ -40,5 +42,6 @@ export const headerDictionary: Record<Language, Record<string, string>> = {
     login: 'ログイン',
     signupCta: '無料で始める',
     languageSwitcherLabel: '言語選択',
+    menu: 'メニュー',
   },
 }
