@@ -236,10 +236,11 @@ export function TripDetailPage({
     setNotice(t('tripDetail.noticeEdited', { oldActivity, newActivity }))
   }
 
-  function resolveSwapOptions(activity: string, day: number): string[] {
+  function resolveSwapOptions(activity: string, _day: number): string[] {
     if (!trip) return []
-    const dayActivities = trip.itinerary.days.find((d) => d.day === day)?.activities ?? []
-    return getSwapOptions(trip.itinerary.destination, activity, dayActivities)
+    // 교체 후보에서 "지금 일정의 모든 날에 이미 있는 장소"를 빼서, 다른 날과 겹치는 곳을 추천하지 않는다.
+    const placed = trip.itinerary.days.flatMap((d) => d.activities)
+    return getSwapOptions(trip.itinerary.destination, activity, placed)
   }
 
   async function handleAddDay() {

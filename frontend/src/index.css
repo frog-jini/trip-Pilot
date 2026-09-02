@@ -54,6 +54,9 @@
 
   body {
     @apply bg-white text-slate-700 antialiased dark:bg-slate-950 dark:text-slate-300;
+    /* 한글은 어절 사이 공백이 없어서, 좁은 화면에서 flex 칸이 눌리면 글자가 한 자씩 세로로 쌓인다.
+       keep-all로 어절 단위로만 줄바꿈되게 해서 모바일에서도 버튼·라벨이 깨지지 않게 한다. */
+    word-break: keep-all;
   }
 
   h1,

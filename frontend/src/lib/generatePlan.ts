@@ -11,6 +11,9 @@ import {
 
 const ACTIVITIES_PER_STYLE_PER_DAY = 3
 
+// 스타일별 범용 활동 문구. 카탈로그 미등록 목적지의 기본 풀이자, 카탈로그가 있는 목적지에서도
+// 여행 일수가 많아 실제 장소가 모자랄 때 뒤에 이어붙이는 예비 풀(getExtendedStylePool 참고).
+// 하루 3개 × 최장 6일 = 18개를 한 스타일만 골라도 중복 없이 채울 수 있도록 스타일마다 18개씩 둔다.
 const STYLE_ACTIVITIES: Record<TravelStyle, string[]> = {
   '관광 중심': [
     '대표 랜드마크 관광',
@@ -19,6 +22,18 @@ const STYLE_ACTIVITIES: Record<TravelStyle, string[]> = {
     '유명 사원 관광',
     '구시가지 골목 탐방',
     '유명 광장 사진 명소 관광',
+    '현지 전통 마을 관광',
+    '국립 미술관 관광',
+    '왕궁·궁전 관광',
+    '대성당 관광',
+    '케이블카 타고 전망 관광',
+    '야경 명소 관광',
+    '테마 거리 관광',
+    '고대 유적지 관광',
+    '현대 건축물 관광',
+    '전통 재래시장 구경',
+    '강변 산책로 관광',
+    '언덕 전망 포인트 관광',
   ],
   '맛집 중심': [
     '현지 맛집 탐방',
@@ -27,6 +42,18 @@ const STYLE_ACTIVITIES: Record<TravelStyle, string[]> = {
     '로컬 맛집 브런치',
     '노포 맛집 탐방',
     '디저트 카페 투어',
+    '미쉐린 맛집 점심',
+    '현지인 추천 밥집 방문',
+    '길거리 음식 투어',
+    '유명 베이커리 방문',
+    '전통 찻집 방문',
+    '야시장 먹거리 투어',
+    '해산물 전문점 점심',
+    '현지 가정식 체험',
+    '유명 카페 브런치',
+    '수제 맥주 펍 방문',
+    '전통 디저트 맛보기',
+    '푸드코트 탐방',
   ],
   '쇼핑 중심': [
     '대형 쇼핑몰 쇼핑',
@@ -35,6 +62,18 @@ const STYLE_ACTIVITIES: Record<TravelStyle, string[]> = {
     '편집숍 쇼핑 투어',
     '로컬 브랜드 쇼핑',
     '기념품 거리 쇼핑',
+    '백화점 쇼핑',
+    '전통 시장 쇼핑',
+    '서점·문구 쇼핑',
+    '빈티지 숍 쇼핑',
+    '디자인 소품 쇼핑',
+    '면세점 쇼핑',
+    '지하상가 쇼핑',
+    '골목 소품숍 쇼핑',
+    '대형 마트 쇼핑',
+    '레코드숍 쇼핑',
+    '수공예 시장 쇼핑',
+    '스니커즈 편집숍 쇼핑',
   ],
   '힐링 여행': [
     '스파에서 힐링',
@@ -43,6 +82,18 @@ const STYLE_ACTIVITIES: Record<TravelStyle, string[]> = {
     '온천에서 힐링',
     '루프탑 카페에서 힐링',
     '요가·명상 클래스로 힐링',
+    '식물원 산책하며 힐링',
+    '호숫가에서 힐링',
+    '미술관 카페에서 힐링',
+    '족욕·반신욕으로 힐링',
+    '숲길 트레킹으로 힐링',
+    '일몰 감상하며 힐링',
+    '전통 정원에서 힐링',
+    '강가 카페에서 힐링',
+    '해안 산책로 걸으며 힐링',
+    '노을 감상하며 힐링',
+    '북카페에서 힐링',
+    '아침 요가로 힐링',
   ],
   '가족 여행': [
     '테마파크 가족 나들이',
@@ -51,6 +102,18 @@ const STYLE_ACTIVITIES: Record<TravelStyle, string[]> = {
     '동물원 가족 나들이',
     '키즈 카페 나들이',
     '가족 사진 스팟 나들이',
+    '과학관 가족 관람',
+    '박물관 가족 체험',
+    '전망대 가족 나들이',
+    '대형 공원 가족 피크닉',
+    '목장 체험 가족 나들이',
+    '실내 놀이시설 가족 나들이',
+    '식물원 가족 나들이',
+    '기차 체험 가족 나들이',
+    '실내 클라이밍 가족 체험',
+    '농장 체험 가족 나들이',
+    '민속촌 가족 나들이',
+    '전망 타워 가족 관람',
   ],
   '커플 여행': [
     '야경 명소 커플 데이트',
@@ -59,6 +122,18 @@ const STYLE_ACTIVITIES: Record<TravelStyle, string[]> = {
     '분위기 좋은 레스토랑 커플 저녁',
     '커플 액티비티 체험',
     '기념품 숍 커플 데이트',
+    '전망 카페 커플 데이트',
+    '미술관 커플 관람',
+    '강변 산책 커플 데이트',
+    '노을 명소 커플 사진',
+    '디저트 맛집 커플 데이트',
+    '플리마켓 커플 구경',
+    '재즈 바 커플 데이트',
+    '전망 산책로 커플 데이트',
+    '공방 클래스 커플 체험',
+    '벼룩시장 커플 구경',
+    '해변 노을 커플 데이트',
+    '전통찻집 커플 데이트',
   ],
   '혼자 여행': [
     '한적한 카페에서 혼자만의 시간',
@@ -67,6 +142,18 @@ const STYLE_ACTIVITIES: Record<TravelStyle, string[]> = {
     '조용한 미술관 혼자 관람',
     '혼자 즐기는 로컬 맛집',
     '한적한 공원 산책',
+    '골목 카페 혼자 탐방',
+    '현지 도서관 방문',
+    '전시회 혼자 관람',
+    '재래시장 혼자 구경',
+    '강변 자전거 라이딩',
+    '전망 언덕 혼자 산책',
+    '로컬 서점 혼자 탐방',
+    '사진 스팟 혼자 나들이',
+    '오래된 골목 혼자 산책',
+    '수변공원 혼자 산책',
+    '작은 갤러리 혼자 관람',
+    '동네 시장 혼자 구경',
   ],
 }
 
@@ -80,6 +167,15 @@ function getStylePool(style: TravelStyle, destination: string): string[] {
   return STYLE_ACTIVITIES[style]
 }
 
+// 여러 날에 걸쳐 활동을 뽑을 때 쓰는 "확장 풀". 카탈로그가 있는 목적지는 실제 장소를 먼저 쓰되,
+// 그 장소들(스타일당 6개)만으로는 긴 일정에서 금방 바닥나 같은 곳을 다시 추천하게 되므로, 뒤에
+// 범용 활동 문구를 이어붙여 후보 폭을 넓힌다. 카탈로그가 없으면 이미 범용 풀이라 그대로 쓴다.
+function getExtendedStylePool(style: TravelStyle, destination: string): string[] {
+  const primary = getStylePool(style, destination)
+  if (primary === STYLE_ACTIVITIES[style]) return primary
+  return [...primary, ...STYLE_ACTIVITIES[style]]
+}
+
 function parseMustVisit(raw: string): string[] {
   return raw
     .split(/[,\n]/)
@@ -87,12 +183,26 @@ function parseMustVisit(raw: string): string[] {
     .filter(Boolean)
 }
 
-// dayIndex만큼 풀 안에서 시작 위치를 밀어서 뽑는다 — 그래야 여러 날에 걸쳐 같은 스타일이어도
-// 매일 다른 활동이 나오고, 풀을 다 쓰면(%) 자연스럽게 처음부터 순환한다.
-function activitiesForStyleOnDay(style: TravelStyle, dayIndex: number, destination: string): string[] {
-  const pool = getStylePool(style, destination)
+// dayIndex번째 날에 이 스타일로 추천할 활동을 고른다. 풀의 dayIndex*count 지점부터 한 바퀴
+// 돌면서 "아직 이 일정에 안 쓴" 활동만 count개까지 모으고, 고른 항목은 used에 등록한다 —
+// 같은 장소가 여러 스타일 풀에 동시에 속하거나(예: 시장 = 맛집이자 쇼핑), 여러 날에 걸쳐도
+// 절대 두 번 추천되지 않는다. 풀을 다 써서 더 못 고르면 그 스타일은 그날 자리를 비운다.
+function takeFreshActivities(
+  style: TravelStyle,
+  dayIndex: number,
+  destination: string,
+  used: Set<string>,
+): string[] {
+  const pool = getExtendedStylePool(style, destination)
   const count = Math.min(ACTIVITIES_PER_STYLE_PER_DAY, pool.length)
-  return Array.from({ length: count }, (_, k) => pool[(dayIndex + k) % pool.length])
+  const picked: string[] = []
+  for (let step = 0; step < pool.length && picked.length < count; step++) {
+    const candidate = pool[(dayIndex * count + step) % pool.length]
+    if (used.has(candidate)) continue
+    used.add(candidate)
+    picked.push(candidate)
+  }
+  return picked
 }
 
 function dateForDayIndex(startDate: string | undefined, dayIndex: number): string | undefined {
@@ -106,10 +216,14 @@ export function generatePlan(values: TripPlanFormValues): TripItinerary {
   const dayCount = DURATION_OPTIONS.indexOf(values.duration) + 2
   const mustVisitPlaces = parseMustVisit(values.mustVisit)
 
+  // 일정 전체에서 한 번 등장한 활동은 다시 넣지 않기 위한 집합. 필수 방문지도 미리 넣어둬서
+  // 스타일 추천이 같은 곳을 중복 제안하지 않게 한다.
+  const used = new Set<string>(mustVisitPlaces)
+
   const days: DayPlan[] = Array.from({ length: dayCount }, (_, index) => {
     const dayNumber = index + 1
     const styleActivities = values.styles.flatMap((style) =>
-      activitiesForStyleOnDay(style, index, values.destination),
+      takeFreshActivities(style, index, values.destination, used),
     )
     const activities = dayNumber === 1 ? [...mustVisitPlaces, ...styleActivities] : styleActivities
 
@@ -142,8 +256,10 @@ export function addDay(
   history: ActivityHistory,
 ): AddDayResult {
   const dayNumber = itinerary.days.length + 1
+  // 기존 모든 날에 이미 나온 활동은 제외하고 새 날을 채운다(중복 추천 방지).
+  const used = new Set<string>(Object.values(history).flat())
   const activities = values.styles.flatMap((style) =>
-    activitiesForStyleOnDay(style, itinerary.days.length, itinerary.destination),
+    takeFreshActivities(style, itinerary.days.length, itinerary.destination, used),
   )
 
   const newDay: DayPlan = {
@@ -173,15 +289,22 @@ export interface RemoveActivityResult {
   history: ActivityHistory
 }
 
-// 선택된 스타일들을 순서대로 훑으며, 이 날 아직 한 번도 안 보여준 활동을 찾는다. 삭제·활동추가
-// 양쪽에서 "빈 자리를 뭘로 채울지" 정하는 데 공통으로 쓰인다.
+// 대체·보충 활동을 고를 때 후보에서 빼야 하는, "지금 일정의 모든 날에 이미 올라가 있는 활동".
+// 이게 없으면 1일차에 있는 장소가 2일차 빈자리를 메우면서 날짜 간 중복이 생긴다.
+function placedActivities(itinerary: TripItinerary): string[] {
+  return itinerary.days.flatMap((d) => d.activities)
+}
+
+// 선택된 스타일들을 순서대로 훑으며, 아직 한 번도 안 쓴(everShown에 없는) 활동을 찾는다. 삭제·활동추가
+// 양쪽에서 "빈 자리를 뭘로 채울지" 정하는 데 공통으로 쓰인다. everShown에는 그 날 이력뿐 아니라
+// 다른 날에 이미 배치된 활동(placedActivities)까지 합쳐 넘겨야 날짜 간 중복이 안 생긴다.
 function findReplacementActivity(
   styles: TravelStyle[],
   destination: string,
   everShown: string[],
 ): string | null {
   for (const style of styles) {
-    const candidate = getStylePool(style, destination).find((activity) => !everShown.includes(activity))
+    const candidate = getExtendedStylePool(style, destination).find((activity) => !everShown.includes(activity))
     if (candidate) return candidate
   }
   return null
@@ -196,7 +319,7 @@ const INDOOR_STYLE_PRIORITY: TravelStyle[] = ['쇼핑 중심', '맛집 중심', 
 // 활동 문구가 어느 스타일 풀에서 왔는지 역으로 찾는다 — activityCost/activityTime처럼 활동을
 // "이름"으로만 다루는 다른 모듈들과 달리, 여기서는 그 이름이 실외인지 판단하려고 스타일이 필요하다.
 export function findStyleForActivity(activity: string, destination: string): TravelStyle | null {
-  return ALL_STYLES.find((style) => getStylePool(style, destination).includes(activity)) ?? null
+  return ALL_STYLES.find((style) => getExtendedStylePool(style, destination).includes(activity)) ?? null
 }
 
 function isOutdoorActivity(activity: string, destination: string): boolean {
@@ -208,7 +331,7 @@ function isOutdoorActivity(activity: string, destination: string): boolean {
 // 쇼핑몰이 가장 자연스럽다고 보고 먼저 시도하는 것.
 function findIndoorReplacement(destination: string, everShown: string[]): string | null {
   for (const style of INDOOR_STYLE_PRIORITY) {
-    const candidate = getStylePool(style, destination).find((activity) => !everShown.includes(activity))
+    const candidate = getExtendedStylePool(style, destination).find((activity) => !everShown.includes(activity))
     if (candidate) return candidate
   }
   return null
@@ -235,11 +358,15 @@ export function applyWeatherAdjustment(
 
   let everShown = history[day] ?? [...targetDay.activities]
   let changed = false
+  // 다른 날에 이미 있는 활동으로 바꾸면 날짜 간 중복이 되므로 함께 제외한다.
+  const otherDayActivities = itinerary.days
+    .filter((d) => d.day !== day)
+    .flatMap((d) => d.activities)
 
   const nextActivities = targetDay.activities.map((activity) => {
     if (!isOutdoorActivity(activity, itinerary.destination)) return activity
 
-    const replacement = findIndoorReplacement(itinerary.destination, everShown)
+    const replacement = findIndoorReplacement(itinerary.destination, [...everShown, ...otherDayActivities])
     if (!replacement) return activity
 
     everShown = [...everShown, replacement]
@@ -269,12 +396,14 @@ export function removeActivity(
   let addedActivity: string | null = null
   const dayHistory = history[day] ?? itinerary.days.find((d) => d.day === day)?.activities ?? []
   const everShown = dayHistory.includes(activity) ? dayHistory : [...dayHistory, activity]
+  // 그 날 이력 + 다른 날에 이미 배치된 활동을 모두 제외해야 날짜 간 중복 없이 빈자리를 채운다.
+  const exclude = [...everShown, ...placedActivities(itinerary)]
 
   const days = itinerary.days.map((d) => {
     if (d.day !== day) return d
 
     const remaining = d.activities.filter((a) => a !== activity)
-    const replacement = findReplacementActivity(values.styles, itinerary.destination, everShown)
+    const replacement = findReplacementActivity(values.styles, itinerary.destination, exclude)
     addedActivity = replacement
 
     return {
@@ -291,11 +420,20 @@ export function removeActivity(
   return { itinerary: { ...itinerary, days }, addedActivity, history: nextHistory }
 }
 
-/** Picks an activity from the combined pool of the selected styles, cycling back through it once every unique entry has already been used — so a day is never blocked purely for running out of fresh names. */
-function pickCyclicActivity(styles: TravelStyle[], destination: string, index: number): string | null {
-  const pool = styles.flatMap((style) => getStylePool(style, destination))
+/** Picks an activity from the combined pool of the selected styles. Prefers entries not already
+ *  in `exclude` (anything currently in the itinerary); only once every unique entry is used up
+ *  does it cycle back and allow a repeat — so a day is never blocked purely for running out of names. */
+function pickCyclicActivity(
+  styles: TravelStyle[],
+  destination: string,
+  index: number,
+  exclude: string[] = [],
+): string | null {
+  const pool = styles.flatMap((style) => getExtendedStylePool(style, destination))
   if (pool.length === 0) return null
-  return pool[index % pool.length]
+  const fresh = pool.filter((activity) => !exclude.includes(activity))
+  const source = fresh.length > 0 ? fresh : pool
+  return source[index % source.length]
 }
 
 export interface AddActivityResult {
@@ -326,9 +464,11 @@ export function addActivity(
     return { itinerary, addedActivity: null, history, reachedDailyLimit: true }
   }
 
+  // 그 날 이력 + 다른 날에 이미 배치된 활동을 모두 제외해서, 여러 날에 걸쳐 중복되지 않게 한다.
+  const exclude = [...dayHistory, ...placedActivities(itinerary)]
   const addedActivity =
-    findReplacementActivity(values.styles, itinerary.destination, dayHistory) ??
-    pickCyclicActivity(values.styles, itinerary.destination, nextIndex)
+    findReplacementActivity(values.styles, itinerary.destination, exclude) ??
+    pickCyclicActivity(values.styles, itinerary.destination, nextIndex, exclude)
 
   if (!addedActivity) {
     return { itinerary, addedActivity: null, history, reachedDailyLimit: false }
@@ -388,7 +528,7 @@ export function getSwapOptions(
   if (!style) return []
 
   const shown = everShown.includes(activity) ? everShown : [...everShown, activity]
-  return getStylePool(style, destination)
+  return getExtendedStylePool(style, destination)
     .filter((candidate) => !shown.includes(candidate))
     .slice(0, limit)
 }

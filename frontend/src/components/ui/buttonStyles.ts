@@ -16,8 +16,10 @@ const sizeClasses: Record<ButtonSize, string> = {
   lg: 'px-6 py-3 text-base',
 }
 
+// whitespace-nowrap: 버튼 라벨("일정 만들기" 등)이 좁은 화면에서 flex 형제에 눌려도 글자가
+// 세로로 쪼개지지 않고 한 줄을 유지하도록 한다.
 const baseClasses =
-  'inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:cursor-not-allowed disabled:opacity-50'
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:cursor-not-allowed disabled:opacity-50'
 
 export function buttonClasses(variant: ButtonVariant = 'primary', size: ButtonSize = 'md', className = '') {
   return `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`.trim()

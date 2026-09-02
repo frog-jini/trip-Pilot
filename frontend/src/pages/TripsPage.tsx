@@ -48,13 +48,13 @@ export function TripsPage({ fetchImpl }: TripsPageProps = {}) {
       <Header />
       <main className="flex-1 bg-slate-50 dark:bg-slate-950">
         <div className="mx-auto max-w-2xl px-6 py-16">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <h1 className="text-3xl">{t('trips.heading')}</h1>
               <p className="mt-2 text-slate-600 dark:text-slate-400">{t('trips.subheading')}</p>
             </div>
             {trips.length > 0 ? (
-              <Button href="/plan/new" variant="primary" size="md">
+              <Button href="/plan/new" variant="primary" size="md" className="shrink-0">
                 {t('trips.newTripButton')}
               </Button>
             ) : null}
@@ -78,8 +78,8 @@ export function TripsPage({ fetchImpl }: TripsPageProps = {}) {
               {trips.map((trip) => {
                 const destinationName = translateDestinationName(trip.itinerary.destination, language)
                 return (
-                <Card key={trip.id} className="flex items-center justify-between gap-4">
-                  <div>
+                <Card key={trip.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div className="min-w-0">
                     <Badge tone="ai">{t('trips.aiGenerated')}</Badge>
                     <h2 className="mt-2 text-base">
                       {destinationName} {t(DURATION_LABEL_KEYS[trip.itinerary.duration])}

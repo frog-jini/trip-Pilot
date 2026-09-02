@@ -92,9 +92,9 @@ export function DestinationSearchPage({ fetchImpl }: DestinationSearchPageProps 
                 setSelectedDestination(null)
               }}
               placeholder={t('destinations.searchPlaceholder')}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="w-full min-w-0 rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
-            <Button type="submit" variant="primary" size="md">
+            <Button type="submit" variant="primary" size="md" className="shrink-0">
               {t('destinations.searchButton')}
             </Button>
           </form>

@@ -181,8 +181,8 @@ export function ItineraryResult({
                     key={key}
                     className="rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="flex items-center gap-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="shrink-0 font-medium text-primary-600 dark:text-primary-400">
                           {onSetActivityTime ? (
                             <input
