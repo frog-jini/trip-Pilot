@@ -34,6 +34,9 @@ lerna-debug.log*
 # OS
 Thumbs.db
 
+# Local-only notes
+PORTFOLIO.md
+
 # .gitignore
 .env
 .env.local
