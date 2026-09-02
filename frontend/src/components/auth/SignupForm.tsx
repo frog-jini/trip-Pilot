@@ -12,7 +12,7 @@ import {
 } from '../../lib/validation'
 
 interface SignupFormProps {
-  onSubmit: (values: SignupFormValues) => void
+  onSubmit: (values: SignupFormValues) => void | Promise<void>
   // 제출 전에 이메일 칸에서 벗어날 때 미리 중복 여부를 물어보기 위한 훅. 없으면(테스트 등)
   // 그냥 제출 시점의 서버 응답으로만 걸러진다.
   onCheckEmail?: (email: string) => Promise<boolean>
@@ -26,17 +26,26 @@ export function SignupForm({ onSubmit, onCheckEmail }: SignupFormProps) {
     passwordConfirm: '',
   })
   const [errors, setErrors] = useState<SignupFormErrors>({})
+  // 제출 중에는 버튼을 비활성화한다 — 모바일에서 첫 요청이 느릴 때 아무 반응이 없어 보여
+  // 여러 번 눌러서 가입 요청이 중복 발사되는 걸 막는다.
+  const [isSubmitting, setIsSubmitting] = useState(false)
   // blur마다 새로 발급해서, 늦게 도착한 이전 확인 응답이 최신 입력값을 덮어쓰지 않게 한다.
   const emailCheckRef = useRef(0)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isSubmitting) return
 
     const nextErrors = validateSignupForm(values)
     setErrors(nextErrors)
 
-    if (Object.keys(nextErrors).length === 0) {
-      onSubmit(values)
+    if (Object.keys(nextErrors).length > 0) return
+
+    setIsSubmitting(true)
+    try {
+      await onSubmit(values)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -84,8 +93,8 @@ export function SignupForm({ onSubmit, onCheckEmail }: SignupFormProps) {
         onChange={(e) => setValues((prev) => ({ ...prev, passwordConfirm: e.target.value }))}
       />
 
-      <Button type="submit" variant="primary" size="lg" className="w-full">
-        {t('auth.signupSubmit')}
+      <Button type="submit" variant="primary" size="lg" className="w-full" disabled={isSubmitting} aria-busy={isSubmitting}>
+        {isSubmitting ? t('auth.signupInProgress') : t('auth.signupSubmit')}
       </Button>
     </form>
   )

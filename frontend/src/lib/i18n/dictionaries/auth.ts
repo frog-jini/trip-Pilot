@@ -28,6 +28,8 @@ export const authDictionary: Record<Language, Record<string, string>> = {
     googleContinue: 'Google로 계속하기',
     kakaoContinue: 'Kakao로 계속하기',
     socialLoginInProgress: '로그인 중...',
+    loginInProgress: '로그인 중...',
+    signupInProgress: '가입 중...',
 
     errorEmailRequired: '이메일을 입력해주세요.',
     errorEmailInvalid: '올바른 이메일 형식이 아니에요.',
@@ -61,6 +63,8 @@ export const authDictionary: Record<Language, Record<string, string>> = {
     googleContinue: 'Continue with Google',
     kakaoContinue: 'Continue with Kakao',
     socialLoginInProgress: 'Signing in...',
+    loginInProgress: 'Logging in...',
+    signupInProgress: 'Signing up...',
 
     errorEmailRequired: 'Please enter your email.',
     errorEmailInvalid: 'That doesn’t look like a valid email.',
@@ -94,6 +98,8 @@ export const authDictionary: Record<Language, Record<string, string>> = {
     googleContinue: 'Googleで続ける',
     kakaoContinue: 'Kakaoで続ける',
     socialLoginInProgress: 'ログイン中...',
+    loginInProgress: 'ログイン中...',
+    signupInProgress: '登録中...',
 
     errorEmailRequired: 'メールアドレスを入力してください。',
     errorEmailInvalid: 'メールアドレスの形式が正しくありません。',

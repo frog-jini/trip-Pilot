@@ -7,24 +7,33 @@ import { useLanguage } from '../../context/languageContextValue'
 import { validateLoginForm, type LoginFormErrors, type LoginFormValues } from '../../lib/validation'
 
 interface LoginFormProps {
-  onSubmit: (values: LoginFormValues) => void
+  onSubmit: (values: LoginFormValues) => void | Promise<void>
 }
 
 export function LoginForm({ onSubmit }: LoginFormProps) {
   const { t } = useLanguage()
   const [values, setValues] = useState<LoginFormValues>({ email: '', password: '' })
   const [errors, setErrors] = useState<LoginFormErrors>({})
+  // 제출 중에는 버튼을 비활성화한다 — 모바일에서 첫 요청이 느릴 때(백엔드 콜드 스타트 등)
+  // 아무 반응이 없어 보여 여러 번 눌러서 로그인 요청이 중복 발사되는 걸 막는다.
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isSubmitting) return
 
     // 클라이언트 쪽 검증만 통과하면 제출한다 — 이메일/비밀번호가 실제로 맞는지는
     // onSubmit을 호출한 쪽(서버 응답)이 판단한다.
     const nextErrors = validateLoginForm(values)
     setErrors(nextErrors)
 
-    if (Object.keys(nextErrors).length === 0) {
-      onSubmit(values)
+    if (Object.keys(nextErrors).length > 0) return
+
+    setIsSubmitting(true)
+    try {
+      await onSubmit(values)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -50,8 +59,8 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
         onChange={(e) => setValues((prev) => ({ ...prev, password: e.target.value }))}
       />
 
-      <Button type="submit" variant="primary" size="lg" className="w-full">
-        {t('auth.loginSubmit')}
+      <Button type="submit" variant="primary" size="lg" className="w-full" disabled={isSubmitting} aria-busy={isSubmitting}>
+        {isSubmitting ? t('auth.loginInProgress') : t('auth.loginSubmit')}
       </Button>
     </form>
   )
