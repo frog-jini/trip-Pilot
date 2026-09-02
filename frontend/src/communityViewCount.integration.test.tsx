@@ -11,6 +11,14 @@ import { CommunityTripDetailPage } from './pages/CommunityTripDetailPage'
 import { createFakeApiServer } from './test/fakeApiServer'
 import { generatePlan } from './lib/generatePlan'
 import { emptyTripPlanFormValues, type TripPlanFormValues } from './lib/tripPlan'
+import { writeStoredToken, writeStoredUser } from './lib/authStorage'
+
+// 커뮤니티 상세는 로그인해야만 볼 수 있어서, 목록에서 상세로 넘어가는 시나리오를 검증하려면
+// 먼저 로그인 상태로 만들어둬야 한다.
+function signIn(id = '1', email = 'user@example.com') {
+  writeStoredUser({ id, email })
+  writeStoredToken(id)
+}
 
 const tokyoValues: TripPlanFormValues = {
   ...emptyTripPlanFormValues,
@@ -43,6 +51,7 @@ describe('community view count', () => {
   })
 
   it('shows the same number on the detail page that the landing preview just showed', async () => {
+    signIn()
     const user = userEvent.setup()
     const trip = seedTrip()
     const server = createFakeApiServer({ communityTrips: [trip] })
@@ -58,6 +67,7 @@ describe('community view count', () => {
   })
 
   it('shows the same number on the detail page that the full community list just showed', async () => {
+    signIn()
     const user = userEvent.setup()
     const trip = seedTrip()
     const server = createFakeApiServer({ communityTrips: [trip] })
@@ -71,6 +81,7 @@ describe('community view count', () => {
   })
 
   it('still counts the visit for the next person to load the list', async () => {
+    signIn()
     const user = userEvent.setup()
     const trip = seedTrip()
     const server = createFakeApiServer({ communityTrips: [trip] })

@@ -29,6 +29,10 @@ interface TripPlanLanguageConfig {
   durationExtractors: DurationExtractor[]
   travelersPattern: RegExp
   budgetExtractors: BudgetExtractor[]
+  // "각 50만원씩", "1인당 50만원"처럼 1인 기준 금액으로 답하는 경우를 가리키는 표현. 매칭되면
+  // extractBudget()이 인원 수를 곱해서 총 예산으로 환산한다 — 질문(questionBudget)은 항상 총액을
+  // 묻지만, 실제로는 1인 기준으로 답하는 사용자가 흔하기 때문이다.
+  perPersonBudgetPattern: RegExp
   styleKeywordGroups: [string[], TravelStyle][]
 }
 
@@ -36,6 +40,7 @@ const KO_CONFIG: TripPlanLanguageConfig = {
   durationExtractors: [{ pattern: /(\d)\s*박\s*(\d)\s*일/, order: 'nightsFirst' }],
   travelersPattern: /(\d+)\s*명/,
   budgetExtractors: [{ pattern: /(\d+)\s*만\s*원/ }],
+  perPersonBudgetPattern: /각|1인당|인당|씩/,
   styleKeywordGroups: [
     [['관광'], '관광 중심'],
     [['맛집'], '맛집 중심'],
@@ -64,6 +69,7 @@ const EN_CONFIG: TripPlanLanguageConfig = {
       toManWon: (raw) => String(Math.round(Number(raw.replace(/,/g, '')) / 10000)),
     },
   ],
+  perPersonBudgetPattern: /\beach\b|\bper\s*(?:person|head)\b/i,
   styleKeywordGroups: [
     [['sightseeing', 'sight-seeing', 'tour'], '관광 중심'],
     [['food', 'foodie', 'restaurant', 'culinary'], '맛집 중심'],
@@ -81,6 +87,7 @@ const JA_CONFIG: TripPlanLanguageConfig = {
   // 예산 질문(questionBudget)이 "100万ウォン"처럼 답하도록 안내하므로 ウォン(원)을 기본으로 인식하고,
   // 円(엔)으로 답하는 경우도 함께 받아준다 — 실제 저장되는 값은 통화와 무관하게 항상 "만원" 단위 숫자다.
   budgetExtractors: [{ pattern: /(\d+)\s*万\s*(?:ウォン|円)/ }],
+  perPersonBudgetPattern: /一人当たり|一人あたり|それぞれ|各/,
   styleKeywordGroups: [
     [['観光'], '관광 중심'],
     [['グルメ', '食べ歩き'], '맛집 중심'],
@@ -109,6 +116,24 @@ function normalizeFullWidthDigits(message: string): string {
   return message.replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// 영어처럼 공백으로 단어가 구분되는 언어의 키워드는 \b(단어 경계)로 감싸서 매칭해야
+// "tourist" 안의 "tour"처럼 다른 단어에 우연히 포함된 부분 문자열을 스타일 키워드로
+// 오인식하지 않는다. 한국어/일본어는 조사가 공백 없이 바로 붙어 \b가 성립하지 않으므로
+// 라틴 문자로만 이뤄진 키워드에만 적용한다.
+const ASCII_WORD_KEYWORD = /^[a-z0-9][a-z0-9\s'-]*$/i
+
+function keywordMatches(lowerMessage: string, keyword: string): boolean {
+  const lowerKeyword = keyword.toLowerCase()
+  if (ASCII_WORD_KEYWORD.test(lowerKeyword)) {
+    return new RegExp(`\\b${escapeRegExp(lowerKeyword)}\\b`).test(lowerMessage)
+  }
+  return lowerMessage.includes(lowerKeyword)
+}
+
 function extractDestination(message: string): string | null {
   return findCatalogKey(message)
 }
@@ -130,13 +155,21 @@ function extractTravelers(message: string, config: TripPlanLanguageConfig): stri
   return match ? match[1] : null
 }
 
-function extractBudget(message: string, config: TripPlanLanguageConfig): string | null {
+// questionBudget은 항상 "총 예산"을 묻지만, 실제로는 "각 50만원씩"처럼 1인 기준으로 답하는
+// 경우가 흔하다. travelersCount가 있고 perPersonBudgetPattern에 걸리면 인원 수를 곱해 총액으로
+// 환산한다 — travelersCount를 모르면(아직 인원을 안 물어봤다면) 곱할 수 없으니 그대로 둔다.
+function extractBudget(message: string, config: TripPlanLanguageConfig, travelersCount: number | null): string | null {
   for (const { pattern, toManWon } of config.budgetExtractors) {
     const match = message.match(pattern)
     if (!match) continue
 
     const raw = match[1]
-    return toManWon ? toManWon(raw) : raw
+    const value = toManWon ? toManWon(raw) : raw
+
+    if (travelersCount && travelersCount > 0 && config.perPersonBudgetPattern.test(message)) {
+      return String(Math.round(Number(value) * travelersCount))
+    }
+    return value
   }
   return null
 }
@@ -144,7 +177,7 @@ function extractBudget(message: string, config: TripPlanLanguageConfig): string 
 function extractStyles(message: string, config: TripPlanLanguageConfig): TravelStyle[] {
   const lowerMessage = message.toLowerCase()
   return config.styleKeywordGroups
-    .filter(([keywords]) => keywords.some((keyword) => lowerMessage.includes(keyword.toLowerCase())))
+    .filter(([keywords]) => keywords.some((keyword) => keywordMatches(lowerMessage, keyword)))
     .map(([, style]) => style)
 }
 
@@ -175,7 +208,9 @@ export function parseTripPlanMessage(
   const destination = extractDestination(normalizedMessage)
   const duration = extractDuration(normalizedMessage, config)
   const travelers = extractTravelers(normalizedMessage, config)
-  const budget = extractBudget(normalizedMessage, config)
+  const effectiveTravelers = Number(travelers ?? current.travelers)
+  const travelersCount = Number.isFinite(effectiveTravelers) && effectiveTravelers > 0 ? effectiveTravelers : null
+  const budget = extractBudget(normalizedMessage, config, travelersCount)
   const newStyles = extractStyles(normalizedMessage, config)
 
   // 다른 필드가 이미 이 메시지에서 뽑혔다면(예: "2박 3일") 그 숫자를 인원/예산으로 오인식하지

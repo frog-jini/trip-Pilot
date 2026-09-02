@@ -6,6 +6,7 @@ interface FakeUser {
   id: string
   email: string
   password: string
+  nickname?: string | null
 }
 
 function jsonResponse(status: number, data: unknown): Response {
@@ -51,8 +52,8 @@ export function createFakeAuthServer(): FakeAuthServer {
         return jsonResponse(409, { error: '이미 가입된 이메일이에요.' })
       }
       const id = String(nextId++)
-      usersByEmail.set(body.email, { id, email: body.email, password: body.password })
-      return jsonResponse(201, { token: id, user: { id, email: body.email } })
+      usersByEmail.set(body.email, { id, email: body.email, password: body.password, nickname: null })
+      return jsonResponse(201, { token: id, user: { id, email: body.email, nickname: null } })
     }
 
     if (method === 'POST' && path === '/api/auth/login') {
@@ -60,16 +61,18 @@ export function createFakeAuthServer(): FakeAuthServer {
       if (!found || found.password !== body.password) {
         return jsonResponse(401, { error: '이메일 또는 비밀번호가 올바르지 않아요.' })
       }
-      return jsonResponse(200, { token: found.id, user: { id: found.id, email: found.email } })
+      return jsonResponse(200, {
+        token: found.id,
+        user: { id: found.id, email: found.email, nickname: found.nickname ?? null },
+      })
     }
 
-    if (method === 'PUT' && path === '/api/auth/email') {
+    if (method === 'PUT' && path === '/api/auth/nickname') {
       if (!currentUser) return jsonResponse(401, { error: '로그인이 필요해요.' })
-      if (usersByEmail.has(body.email)) return jsonResponse(409, { error: '이미 사용 중인 이메일이에요.' })
-      usersByEmail.delete(currentUser.email)
-      currentUser.email = body.email
-      usersByEmail.set(body.email, currentUser)
-      return jsonResponse(200, { user: { id: currentUser.id, email: currentUser.email } })
+      const nickname = typeof body.nickname === 'string' ? body.nickname.trim() : ''
+      if (!nickname) return jsonResponse(400, { error: '닉네임을 입력해주세요.' })
+      currentUser.nickname = nickname
+      return jsonResponse(200, { user: { id: currentUser.id, email: currentUser.email, nickname: currentUser.nickname } })
     }
 
     if (method === 'PUT' && path === '/api/auth/password') {
@@ -79,6 +82,32 @@ export function createFakeAuthServer(): FakeAuthServer {
       }
       currentUser.password = body.newPassword
       return jsonResponse(200, { success: true })
+    }
+
+    if (method === 'POST' && path === '/api/auth/oauth/google') {
+      const [, email, name] = String(body.idToken ?? '').split('|')
+      if (!email) return jsonResponse(401, { error: '구글 로그인을 확인하지 못했어요.' })
+      let found = usersByEmail.get(email)
+      if (!found) {
+        const id = String(nextId++)
+        found = { id, email, password: '' }
+        usersByEmail.set(email, found)
+      }
+      found.nickname = name ?? found.nickname ?? null
+      return jsonResponse(200, { token: found.id, user: { id: found.id, email: found.email, nickname: found.nickname } })
+    }
+
+    if (method === 'POST' && path === '/api/auth/oauth/kakao') {
+      const [, email, nickname] = String(body.accessToken ?? '').split('|')
+      if (!email) return jsonResponse(401, { error: '카카오 로그인을 확인하지 못했어요.' })
+      let found = usersByEmail.get(email)
+      if (!found) {
+        const id = String(nextId++)
+        found = { id, email, password: '' }
+        usersByEmail.set(email, found)
+      }
+      found.nickname = nickname ?? found.nickname ?? null
+      return jsonResponse(200, { token: found.id, user: { id: found.id, email: found.email, nickname: found.nickname } })
     }
 
     if (method === 'DELETE' && path === '/api/auth/me') {

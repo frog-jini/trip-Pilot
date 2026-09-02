@@ -5,6 +5,17 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- 구글/카카오 같은 소셜 로그인 계정 식별자. 이메일/비밀번호로 가입한 계정은 둘 다 NULL이다.
+-- provider_id는 각 서비스가 발급하는 고유 사용자 ID(구글의 "sub" 등)로, 이메일이 바뀌어도 값이
+-- 유지되므로 이 조합으로 계정을 찾는다.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS provider TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS users_provider_identity_idx ON users(provider, provider_id) WHERE provider IS NOT NULL;
+
+-- 구글의 name/카카오의 nickname을 그대로 저장해둔다. 이메일/비밀번호 가입 계정은 NULL — 화면은
+-- nickname이 있으면 그걸, 없으면 email로 대신 표시한다(Header.tsx 참고).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname TEXT;
+
 CREATE TABLE IF NOT EXISTS trips (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

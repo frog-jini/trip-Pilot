@@ -31,6 +31,20 @@ describe('parseTripPlanMessage', () => {
     expect(parseTripPlanMessage('예산은 100만원이야', baseValues()).budget).toBe('100')
   })
 
+  it('multiplies a per-person budget ("각 ~씩") by the known traveler count into a total', () => {
+    const current = { ...baseValues(), travelers: '2' }
+    expect(parseTripPlanMessage('각 50만원씩', current).budget).toBe('100')
+  })
+
+  it('multiplies a per-person budget by travelers extracted from the same message', () => {
+    expect(parseTripPlanMessage('3명이서 각 50만원씩', baseValues()).budget).toBe('150')
+  })
+
+  it('does not multiply a plain total budget even when travelers is already known', () => {
+    const current = { ...baseValues(), travelers: '2' }
+    expect(parseTripPlanMessage('예산은 100만원이야', current).budget).toBe('100')
+  })
+
   it('extracts a single travel style', () => {
     expect(parseTripPlanMessage('쇼핑 위주로 짜줘', baseValues()).styles).toEqual(['쇼핑 중심'])
   })

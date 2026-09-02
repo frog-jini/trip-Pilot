@@ -63,9 +63,11 @@ describe('AppRoutes', () => {
     expect(screen.getByRole('heading', { level: 1, name: '커뮤니티' })).toBeInTheDocument()
   })
 
-  it('renders the community trip not-found fallback at /community/:tripId for an unknown id', async () => {
+  // 커뮤니티 상세는 로그인이 필요해서, 비로그인 상태로는 id가 존재하는지 여부와 무관하게
+  // 항상 로그인 안내가 먼저 뜬다("해당 일정을 찾을 수 없어요"가 아니라).
+  it('renders the community trip login-required fallback at /community/:tripId when logged out', async () => {
     renderAt('/community/does-not-exist')
-    expect(await screen.findByText('해당 커뮤니티 일정을 찾을 수 없어요.')).toBeInTheDocument()
+    expect(await screen.findByText('로그인이 필요해요.')).toBeInTheDocument()
   })
 
   it('renders the account login prompt at /account when logged out', () => {

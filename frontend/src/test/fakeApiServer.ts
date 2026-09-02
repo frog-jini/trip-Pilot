@@ -249,6 +249,7 @@ export function createFakeApiServer(options: FakeApiServerOptions = {}): FakeApi
 
     const communityViewMatch = path.match(/^\/api\/community\/([^/]+)\/view$/)
     if (communityViewMatch && method === 'POST') {
+      if (!userId) return jsonResponse(401, { error: '로그인이 필요해요.' })
       const trip = communityTrips.get(communityViewMatch[1])
       if (trip) trip.views += 1
       return jsonResponse(200, { views: trip?.views ?? 0 })
@@ -260,6 +261,9 @@ export function createFakeApiServer(options: FakeApiServerOptions = {}): FakeApi
       const trip = communityTrips.get(id)
 
       if (method === 'GET') {
+        // 목록(GET /api/community)은 비로그인도 볼 수 있지만, 상세는 로그인해야만 볼 수 있다 —
+        // backend/src/routes/community.ts의 GET /:id가 requireAuth인 것과 맞춘 것.
+        if (!userId) return jsonResponse(401, { error: '로그인이 필요해요.' })
         if (!trip) return jsonResponse(404, { error: '커뮤니티 일정을 찾을 수 없어요.' })
         return jsonResponse(200, { trip: communityTripToApi(trip, userId) })
       }

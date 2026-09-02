@@ -72,6 +72,7 @@ describe('CommunityTripDetailPage', () => {
   })
 
   it("renders the matching trip's author, destination, and every activity", async () => {
+    signIn()
     const trip = seedTrip()
     const server = createFakeApiServer({ communityTrips: [trip] })
     renderAt(`/community/${trip.id}`, server.fetchImpl)
@@ -84,6 +85,7 @@ describe('CommunityTripDetailPage', () => {
   })
 
   it('translates the community demo activity phrases when the language is English', async () => {
+    signIn()
     writeStoredLanguage('en')
     const trip = seedTrip()
     const server = createFakeApiServer({ communityTrips: [trip] })
@@ -95,6 +97,7 @@ describe('CommunityTripDetailPage', () => {
   })
 
   it('does not render delete buttons since this is someone else’s trip', async () => {
+    signIn()
     const trip = seedTrip()
     const server = createFakeApiServer({ communityTrips: [trip] })
     renderAt(`/community/${trip.id}`, server.fetchImpl)
@@ -132,6 +135,7 @@ describe('CommunityTripDetailPage', () => {
   })
 
   it('records a view for future visitors but keeps showing this viewer the count the list already showed', async () => {
+    signIn()
     const trip = seedTrip()
     const server = createFakeApiServer({ communityTrips: [trip] })
     renderAt(`/community/${trip.id}`, server.fetchImpl)
@@ -143,6 +147,7 @@ describe('CommunityTripDetailPage', () => {
   })
 
   it('records exactly one view per visit, even under React StrictMode', async () => {
+    signIn()
     const trip = seedTrip()
     const server = createFakeApiServer({ communityTrips: [trip] })
     renderAtStrict(`/community/${trip.id}`, server.fetchImpl)
@@ -152,10 +157,23 @@ describe('CommunityTripDetailPage', () => {
   })
 
   it('shows a not-found message with a link back to the community list for an unknown id', async () => {
+    signIn()
     const server = createFakeApiServer()
     renderAt('/community/does-not-exist', server.fetchImpl)
 
     expect(await screen.findByText('해당 커뮤니티 일정을 찾을 수 없어요.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '커뮤니티로 돌아가기' })).toHaveAttribute('href', '/community')
+  })
+
+  // 목록(랜딩 페이지 미리보기/커뮤니티 페이지)은 비로그인도 볼 수 있지만, 개별 일정 상세는
+  // 로그인해야만 볼 수 있다 — 로그인 안내와 로그인 페이지로 가는 링크를 보여준다.
+  it('shows a login-required message instead of the itinerary when logged out', async () => {
+    const trip = seedTrip()
+    const server = createFakeApiServer({ communityTrips: [trip] })
+    renderAt(`/community/${trip.id}`, server.fetchImpl)
+
+    expect(await screen.findByText('로그인이 필요해요.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '로그인하러 가기' })).toHaveAttribute('href', '/login')
+    expect(screen.queryByText(new RegExp(trip.itinerary.destination))).not.toBeInTheDocument()
   })
 })

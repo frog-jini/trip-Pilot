@@ -89,6 +89,13 @@ export function PlanChatPage({
     setValues(updated)
 
     if (!isTripPlanReady(updated)) {
+      // 스타일 질문에 답했는데 등록된 키워드(관광/맛집/쇼핑 등)와 하나도 안 맞으면 styles가 그대로라
+      // nextTripPlanQuestion()이 같은 질문을 무한 반복하게 된다 — 사용자 입장에선 봇이 멈춘 것처럼
+      // 보이므로, 이 경우엔 "이해 못 했다"는 걸 알려주는 별도 문구로 답한다.
+      const wasAskedAboutStyles = nextTripPlanQuestion(values) === 'plan.questionStyles'
+      const styleNotRecognized = wasAskedAboutStyles && updated.styles.length === values.styles.length
+      if (styleNotRecognized) return reply('plan.chatPlanStyleNotRecognized')
+
       const questionKey = nextTripPlanQuestion(updated)
       return reply(questionKey ?? 'plan.chatPlanGreeting')
     }

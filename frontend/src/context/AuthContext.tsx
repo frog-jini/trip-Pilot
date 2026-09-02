@@ -34,7 +34,7 @@ export function AuthProvider({ children, fetchImpl }: AuthProviderProps) {
     setUser(nextUser)
   }
 
-  // login/signup/updateEmail/updatePassword는 실패해도 throw하지 않고 boolean만 돌려준다 —
+  // login/signup/updateNickname/updatePassword는 실패해도 throw하지 않고 boolean만 돌려준다 —
   // 호출하는 폼 컴포넌트가 try/catch 없이 "성공했는지"만으로 화면을 분기할 수 있게 하기 위함.
   // ApiError가 아닌 진짜 예외(네트워크 끊김 등)는 그대로 던져서 폼이 삼키지 못하게 한다.
   async function login(email: string, password: string): Promise<boolean> {
@@ -90,6 +90,40 @@ export function AuthProvider({ children, fetchImpl }: AuthProviderProps) {
     return signup(email, DEMO_SOCIAL_PASSWORD)
   }
 
+  // Google Identity Services가 로그인 성공 후 돌려준 id_token을 서버로 그대로 넘긴다 — 서버가
+  // 구글에 검증을 맡기고, 그 결과로 찾거나 새로 만든 계정의 세션을 돌려준다.
+  async function loginWithGoogle(idToken: string): Promise<boolean> {
+    try {
+      const response = await apiRequest<{ token: string; user: AuthUser }>('/api/auth/oauth/google', {
+        method: 'POST',
+        body: { idToken },
+        fetchImpl,
+      })
+      applySession(response.token, response.user)
+      return true
+    } catch (error) {
+      if (error instanceof ApiError) return false
+      throw error
+    }
+  }
+
+  // Kakao SDK가 로그인 성공 후 돌려준 access_token을 서버로 그대로 넘긴다 — 서버가 카카오
+  // 사용자정보 API로 검증을 맡기고, 그 결과로 찾거나 새로 만든 계정의 세션을 돌려준다.
+  async function loginWithKakao(accessToken: string): Promise<boolean> {
+    try {
+      const response = await apiRequest<{ token: string; user: AuthUser }>('/api/auth/oauth/kakao', {
+        method: 'POST',
+        body: { accessToken },
+        fetchImpl,
+      })
+      applySession(response.token, response.user)
+      return true
+    } catch (error) {
+      if (error instanceof ApiError) return false
+      throw error
+    }
+  }
+
   function logout() {
     clearStoredToken()
     clearStoredUser()
@@ -97,18 +131,16 @@ export function AuthProvider({ children, fetchImpl }: AuthProviderProps) {
     setUser(null)
   }
 
-  async function updateEmail(email: string): Promise<boolean> {
+  async function updateNickname(nickname: string): Promise<boolean> {
     if (!token || !user) return false
 
     try {
-      const response = await apiRequest<{ user: AuthUser }>('/api/auth/email', {
+      const response = await apiRequest<{ user: AuthUser }>('/api/auth/nickname', {
         method: 'PUT',
-        body: { email },
+        body: { nickname },
         token,
         fetchImpl,
       })
-      // Trips and favorites are both scoped server-side by the account's user id now,
-      // so an email change doesn't need to move any locally-stored data.
       writeStoredUser(response.user)
       setUser(response.user)
       return true
@@ -156,8 +188,10 @@ export function AuthProvider({ children, fetchImpl }: AuthProviderProps) {
         signup,
         checkEmailAvailable,
         loginWithDemoAccount,
+        loginWithGoogle,
+        loginWithKakao,
         logout,
-        updateEmail,
+        updateNickname,
         updatePassword,
         deleteAccount,
       }}

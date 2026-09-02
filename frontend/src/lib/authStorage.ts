@@ -6,6 +6,9 @@ const TOKEN_KEY = 'trippilot_token'
 export interface AuthUser {
   id?: string
   email: string
+  // 구글 이름/카카오 닉네임. 이메일/비밀번호 가입 계정은 null(또는 응답에 없으면 undefined).
+  // 화면에는 이게 있으면 이걸, 없으면 email을 대신 보여준다(Header.tsx 참고).
+  nickname?: string | null
 }
 
 export function readStoredUser(): AuthUser | null {

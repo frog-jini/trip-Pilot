@@ -9,6 +9,7 @@ export const authDictionary: Record<Language, Record<string, string>> = {
     loginFooterText: '아직 계정이 없으신가요?',
     loginFooterLink: '회원가입',
     loginInvalidCredentials: '이메일 또는 비밀번호가 올바르지 않아요.',
+    socialLoginFailed: '소셜 로그인에 실패했어요. 다시 시도해주세요.',
 
     signupTitle: '회원가입',
     signupSubtitle: '1분이면 가입 완료. AI 여행 일정을 무료로 만들어보세요.',
@@ -26,6 +27,7 @@ export const authDictionary: Record<Language, Record<string, string>> = {
 
     googleContinue: 'Google로 계속하기',
     kakaoContinue: 'Kakao로 계속하기',
+    socialLoginInProgress: '로그인 중...',
 
     errorEmailRequired: '이메일을 입력해주세요.',
     errorEmailInvalid: '올바른 이메일 형식이 아니에요.',
@@ -40,6 +42,7 @@ export const authDictionary: Record<Language, Record<string, string>> = {
     loginFooterText: "Don't have an account?",
     loginFooterLink: 'Sign up',
     loginInvalidCredentials: 'Incorrect email or password.',
+    socialLoginFailed: 'Social login failed. Please try again.',
 
     signupTitle: 'Sign Up',
     signupSubtitle: 'Sign up in a minute — create your free AI trip plan.',
@@ -57,6 +60,7 @@ export const authDictionary: Record<Language, Record<string, string>> = {
 
     googleContinue: 'Continue with Google',
     kakaoContinue: 'Continue with Kakao',
+    socialLoginInProgress: 'Signing in...',
 
     errorEmailRequired: 'Please enter your email.',
     errorEmailInvalid: 'That doesn’t look like a valid email.',
@@ -71,6 +75,7 @@ export const authDictionary: Record<Language, Record<string, string>> = {
     loginFooterText: 'アカウントをお持ちでないですか?',
     loginFooterLink: '新規登録',
     loginInvalidCredentials: 'メールアドレスまたはパスワードが正しくありません。',
+    socialLoginFailed: 'ソーシャルログインに失敗しました。もう一度お試しください。',
 
     signupTitle: '新規登録',
     signupSubtitle: '1分で登録完了。AI旅行プランを無料で作成しましょう。',
@@ -88,6 +93,7 @@ export const authDictionary: Record<Language, Record<string, string>> = {
 
     googleContinue: 'Googleで続ける',
     kakaoContinue: 'Kakaoで続ける',
+    socialLoginInProgress: 'ログイン中...',
 
     errorEmailRequired: 'メールアドレスを入力してください。',
     errorEmailInvalid: 'メールアドレスの形式が正しくありません。',

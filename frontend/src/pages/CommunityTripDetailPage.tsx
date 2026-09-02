@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { ItineraryResult } from '../components/plan/ItineraryResult'
 import { getCommunityTrip, recordCommunityView, toggleCommunityLike, type CommunityTrip } from '../lib/communityTrips'
+import { ApiError } from '../lib/apiClient'
 import { useAuth } from '../context/authContextValue'
 import { useLanguage } from '../context/languageContextValue'
 import { addFavorite, isFavorited, readFavorites, removeFavorite, type FavoritePlace } from '../lib/favoritesStorage'
@@ -24,6 +25,10 @@ export function CommunityTripDetailPage({ fetchImpl }: CommunityTripDetailPagePr
   const { t } = useLanguage()
   const [trip, setTrip] = useState<CommunityTrip | null>(null)
   const [loading, setLoading] = useState(true)
+  // 목록(커뮤니티 페이지/랜딩 페이지 미리보기)은 비로그인도 볼 수 있지만, 개별 일정의 상세는
+  // 로그인해야만 볼 수 있다 — 서버가 401을 주면 "찾을 수 없음"이 아니라 "로그인이 필요해요"를
+  // 따로 보여주기 위해 이 상태를 분리해뒀다.
+  const [loginRequired, setLoginRequired] = useState(false)
   const [favorites, setFavorites] = useState<FavoritePlace[]>([])
   const hasRecordedView = useRef(false)
 
@@ -35,11 +40,16 @@ export function CommunityTripDetailPage({ fetchImpl }: CommunityTripDetailPagePr
       .then((result) => {
         if (cancelled) return
         setTrip(result)
+        setLoginRequired(false)
         setLoading(false)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (cancelled) return
-        setTrip(null)
+        if (error instanceof ApiError && error.status === 401) {
+          setLoginRequired(true)
+        } else {
+          setTrip(null)
+        }
         setLoading(false)
       })
 
@@ -63,10 +73,11 @@ export function CommunityTripDetailPage({ fetchImpl }: CommunityTripDetailPagePr
     // otherwise record two views for a single page visit. The count already shown on
     // this page came from the fetch above, taken before this visit's own view is
     // recorded — so recording it here doesn't retroactively bump what's on screen.
-    if (!tripId || hasRecordedView.current) return
+    // 비로그인 방문자는 애초에 상세를 못 보므로(로그인 안내만 뜸) 조회수 기록도 시도하지 않는다.
+    if (!tripId || !token || hasRecordedView.current) return
     hasRecordedView.current = true
-    recordCommunityView(tripId, fetchImpl).catch(() => {})
-  }, [tripId, fetchImpl])
+    recordCommunityView(token, tripId, fetchImpl).catch(() => {})
+  }, [tripId, token, fetchImpl])
 
   async function handleToggleLike() {
     if (!trip || !token) return
@@ -138,7 +149,16 @@ export function CommunityTripDetailPage({ fetchImpl }: CommunityTripDetailPagePr
                 </Button>
               </div>
             </>
-          ) : loading ? null : (
+          ) : loading ? null : loginRequired ? (
+            <div className="text-center">
+              <p className="text-slate-600 dark:text-slate-400">{t('account.loginRequired')}</p>
+              <div className="mt-6">
+                <Button href="/login" variant="primary" size="md">
+                  {t('account.goLoginButton')}
+                </Button>
+              </div>
+            </div>
+          ) : (
             <div className="text-center">
               <p className="text-slate-600 dark:text-slate-400">{t('community.notFound')}</p>
               <div className="mt-6">

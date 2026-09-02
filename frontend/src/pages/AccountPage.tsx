@@ -9,27 +9,34 @@ import { useAuth } from '../context/authContextValue'
 import { useLanguage } from '../context/languageContextValue'
 import { isValidPassword } from '../lib/validation'
 
-// /account 화면. 로그인한 계정의 이메일·비밀번호 변경과 회원 탈퇴를 처리한다.
-// 이메일/비밀번호 폼을 하나로 합치지 않고 두 개의 별도 <form>으로 나눈 이유는, 이메일만
-// 바꾸고 싶은 사용자가 매번 비밀번호 필드까지 채울 필요가 없게 하기 위해서다.
+// /account 화면. 로그인한 계정의 닉네임·비밀번호 변경과 회원 탈퇴를 처리한다.
+// 가입 때 쓴 이메일은 계정 식별자라 고정이고(변경 기능 없음, 읽기 전용으로만 보여줌),
+// 화면에 표시되는 이름은 닉네임으로만 바꿀 수 있다(Header.tsx/community.ts와 일관).
 export function AccountPage() {
-  const { user, updateEmail, updatePassword, deleteAccount } = useAuth()
+  const { user, updateNickname, updatePassword, deleteAccount } = useAuth()
   const { t } = useLanguage()
   const navigate = useNavigate()
-  const [email, setEmail] = useState(user?.email ?? '')
-  const [message, setMessage] = useState<string | null>(null)
+  const [nickname, setNickname] = useState(user?.nickname ?? '')
+  const [nicknameMessage, setNicknameMessage] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  // 헤더/커뮤니티 등 화면에 실제로 표시되는 이름은 이메일이 아니라 닉네임이다(Header.tsx,
+  // 백엔드 community.ts 참고) — 이메일은 로그인 식별자 역할만 하도록 분리해뒀다.
+  async function handleNicknameSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!user) return
 
-    const success = await updateEmail(email.trim())
-    setMessage(success ? t('account.emailChanged') : t('account.emailTaken'))
+    if (!nickname.trim()) {
+      setNicknameMessage(t('account.nicknameRequired'))
+      return
+    }
+
+    const success = await updateNickname(nickname.trim())
+    setNicknameMessage(success ? t('account.nicknameChanged') : t('account.nicknameRequired'))
   }
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
@@ -76,23 +83,28 @@ export function AccountPage() {
               </div>
 
               <Card className="mt-10">
-                <form onSubmit={handleSubmit} noValidate className="space-y-4">
+                <form onSubmit={handleNicknameSubmit} noValidate className="space-y-4">
                   <TextField
-                    label={t('auth.emailLabel')}
-                    name="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    label={t('account.nicknameLabel')}
+                    name="nickname"
+                    placeholder={t('account.nicknamePlaceholder')}
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
                   />
-                  {message ? (
+                  {nicknameMessage ? (
                     <p role="status" className="text-sm text-primary-600 dark:text-primary-400">
-                      {message}
+                      {nicknameMessage}
                     </p>
                   ) : null}
                   <Button type="submit" variant="primary" size="md" className="w-full">
-                    {t('account.saveButton')}
+                    {t('account.saveNicknameButton')}
                   </Button>
                 </form>
+              </Card>
+
+              <Card className="mt-6">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('auth.emailLabel')}</p>
+                <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">{user.email}</p>
               </Card>
 
               <Card className="mt-6">

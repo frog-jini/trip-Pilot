@@ -10,7 +10,7 @@ import type { SignupFormValues } from '../lib/validation'
 
 export function SignupPage() {
   const navigate = useNavigate()
-  const { signup, checkEmailAvailable, loginWithDemoAccount } = useAuth()
+  const { signup, checkEmailAvailable, loginWithDemoAccount, loginWithGoogle, loginWithKakao } = useAuth()
   const { t } = useLanguage()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -25,10 +25,32 @@ export function SignupPage() {
     navigate('/')
   }
 
-  // Google/Kakao 버튼은 실제 OAuth 연동이 아니라, 고정된 데모 이메일로 로그인(없으면 가입)한다.
-  // AuthContext.loginWithDemoAccount 주석 참고.
+  // 구글/카카오 버튼이 설정 안 됐거나 SDK 로드에 실패했을 때의 대체 경로 — 고정된 데모
+  // 이메일로 로그인(없으면 가입)한다. AuthContext.loginWithDemoAccount 주석 참고.
   async function handleSocialLogin(email: string) {
     await loginWithDemoAccount(email)
+    navigate('/')
+  }
+
+  // Google은 진짜 OAuth다 — SocialLoginButtons가 구글에서 검증까지 끝낸 id_token을 넘겨주면
+  // 그대로 서버에 전달해서 세션을 받는다.
+  async function handleGoogleCredential(idToken: string) {
+    const success = await loginWithGoogle(idToken)
+    if (!success) {
+      setErrorMessage(t('auth.socialLoginFailed'))
+      return
+    }
+    navigate('/')
+  }
+
+  // Kakao도 진짜 OAuth다 — SocialLoginButtons가 카카오 로그인으로 받은 access_token을 넘겨주면
+  // 그대로 서버에 전달해서 세션을 받는다.
+  async function handleKakaoCredential(accessToken: string) {
+    const success = await loginWithKakao(accessToken)
+    if (!success) {
+      setErrorMessage(t('auth.socialLoginFailed'))
+      return
+    }
     navigate('/')
   }
 
@@ -57,7 +79,9 @@ export function SignupPage() {
 
         <SocialLoginButtons
           onGoogleClick={() => handleSocialLogin('demo-google@trippilot.app')}
+          onGoogleCredential={handleGoogleCredential}
           onKakaoClick={() => handleSocialLogin('demo-kakao@trippilot.app')}
+          onKakaoCredential={handleKakaoCredential}
         />
       </div>
     </AuthLayout>

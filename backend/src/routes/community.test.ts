@@ -75,8 +75,24 @@ describe('POST /api/community (publish)', () => {
       views: 0,
     })
 
-    const list = await request(app).get('/api/community')
+    const list = await request(app).get('/api/community').set('Authorization', `Bearer ${token}`)
     expect(list.body.trips).toHaveLength(1)
+  })
+
+  // 헤더(Header.tsx)에 표시되는 이름과 커뮤니티 작성자 표기가 서로 다른 값을 쓰면(예: 하나는
+  // 이메일, 하나는 닉네임) 사용자가 "이메일을 바꿨는데 커뮤니티만 안 바뀌었다" 같은 혼란을
+  // 겪는다 — 닉네임이 설정돼 있으면 이메일 대신 닉네임을 작성자로 쓴다.
+  it('uses the nickname instead of the email as the author when a nickname is set', async () => {
+    const token = await signUpAndGetToken()
+    await request(app).put('/api/auth/nickname').set('Authorization', `Bearer ${token}`).send({ nickname: '개굴' })
+    const tripId = await createTrip(token)
+
+    const response = await request(app)
+      .post('/api/community')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tripId, tag: '관광 중심' })
+
+    expect(response.body.trip).toMatchObject({ author: '개굴' })
   })
 
   it('rejects publishing a trip owned by someone else', async () => {
@@ -106,7 +122,7 @@ describe('POST /api/community (publish)', () => {
       .send({ tripId, tag: '관광 중심' })
 
     expect(first.body.trip.id).toBe(second.body.trip.id)
-    const list = await request(app).get('/api/community')
+    const list = await request(app).get('/api/community').set('Authorization', `Bearer ${token}`)
     expect(list.body.trips).toHaveLength(1)
   })
 })
@@ -125,7 +141,7 @@ describe('DELETE /api/community/:id (unpublish)', () => {
       .set('Authorization', `Bearer ${token}`)
     expect(response.status).toBe(204)
 
-    const list = await request(app).get('/api/community')
+    const list = await request(app).get('/api/community').set('Authorization', `Bearer ${token}`)
     expect(list.body.trips).toEqual([])
   })
 
@@ -222,7 +238,9 @@ describe('PUT /api/community/:id (update)', () => {
     expect(response.status).toBe(200)
     expect(response.body.trip.tag).toBe('맛집 중심')
 
-    const detail = await request(app).get(`/api/community/${published.body.trip.id}`)
+    const detail = await request(app)
+      .get(`/api/community/${published.body.trip.id}`)
+      .set('Authorization', `Bearer ${token}`)
     expect(detail.body.trip.tag).toBe('맛집 중심')
   })
 
@@ -328,7 +346,19 @@ describe('POST /api/community/:id/like', () => {
 })
 
 describe('POST /api/community/:id/view', () => {
-  it('does not require a token and increments the view count', async () => {
+  it('requires a token', async () => {
+    const token = await signUpAndGetToken()
+    const tripId = await createTrip(token)
+    const published = await request(app)
+      .post('/api/community')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tripId, tag: '관광 중심' })
+
+    const response = await request(app).post(`/api/community/${published.body.trip.id}/view`)
+    expect(response.status).toBe(401)
+  })
+
+  it('increments the view count', async () => {
     const token = await signUpAndGetToken()
     const tripId = await createTrip(token)
     const published = await request(app)
@@ -337,21 +367,35 @@ describe('POST /api/community/:id/view', () => {
       .send({ tripId, tag: '관광 중심' })
     const communityId = published.body.trip.id
 
-    const first = await request(app).post(`/api/community/${communityId}/view`)
+    const first = await request(app)
+      .post(`/api/community/${communityId}/view`)
+      .set('Authorization', `Bearer ${token}`)
     expect(first.status).toBe(200)
     expect(first.body.views).toBe(1)
 
-    const second = await request(app).post(`/api/community/${communityId}/view`)
+    const second = await request(app)
+      .post(`/api/community/${communityId}/view`)
+      .set('Authorization', `Bearer ${token}`)
     expect(second.body.views).toBe(2)
 
-    const detail = await request(app).get(`/api/community/${communityId}`)
+    const detail = await request(app)
+      .get(`/api/community/${communityId}`)
+      .set('Authorization', `Bearer ${token}`)
     expect(detail.body.trip.views).toBe(2)
   })
 })
 
 describe('GET /api/community/:id', () => {
-  it('returns 404 for an unknown id', async () => {
+  it('requires a token', async () => {
     const response = await request(app).get('/api/community/does-not-exist')
+    expect(response.status).toBe(401)
+  })
+
+  it('returns 404 for an unknown id', async () => {
+    const token = await signUpAndGetToken()
+    const response = await request(app)
+      .get('/api/community/does-not-exist')
+      .set('Authorization', `Bearer ${token}`)
     expect(response.status).toBe(404)
   })
 
@@ -372,18 +416,6 @@ describe('GET /api/community/:id', () => {
 
     expect(response.body.trip.liked).toBe(true)
   })
-
-  it('shows liked as false when unauthenticated', async () => {
-    const token = await signUpAndGetToken()
-    const tripId = await createTrip(token)
-    const published = await request(app)
-      .post('/api/community')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ tripId, tag: '관광 중심' })
-
-    const response = await request(app).get(`/api/community/${published.body.trip.id}`)
-    expect(response.body.trip.liked).toBe(false)
-  })
 })
 
 describe('seed likes', () => {
@@ -401,7 +433,9 @@ describe('seed likes', () => {
 
     await pool.query('UPDATE community_trips SET seed_likes = 50 WHERE id = $1', [communityId])
 
-    const detail = await request(app).get(`/api/community/${communityId}`)
+    const detail = await request(app)
+      .get(`/api/community/${communityId}`)
+      .set('Authorization', `Bearer ${token}`)
     expect(detail.body.trip.likes).toBe(50)
 
     const liked = await request(app)
@@ -430,7 +464,7 @@ describe('GET /api/community list ordering and liked state', () => {
     await pool.query('UPDATE community_trips SET seed_likes = 10 WHERE id = $1', [publishedA.body.trip.id])
     await pool.query('UPDATE community_trips SET seed_likes = 90 WHERE id = $1', [publishedB.body.trip.id])
 
-    const list = await request(app).get('/api/community')
+    const list = await request(app).get('/api/community').set('Authorization', `Bearer ${tokenA}`)
     expect(list.body.trips.map((trip: { id: string }) => trip.id)).toEqual([
       publishedB.body.trip.id,
       publishedA.body.trip.id,

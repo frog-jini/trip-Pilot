@@ -1,34 +1,97 @@
-// Google/Kakao 버튼 UI만 담당한다 — 실제 클릭 시 동작(현재는 고정 비밀번호로 데모 계정에
-// 로그인/가입하는 loginWithDemoAccount, 진짜 OAuth 아님)은 이 컴포넌트를 쓰는 쪽(LoginPage/
-// SignupPage)에서 onGoogleClick/onKakaoClick으로 주입한다.
+// Google은 GIS가 자체 렌더링한 버튼만 신뢰해서 별도 컴포넌트(GoogleSignInButton)를 쓰지만,
+// Kakao는 커스텀 버튼의 클릭 핸들러에서 Kakao.Auth.login()을 직접 호출하는 게 공식 지원
+// 방식이라 이 컴포넌트 안에서 바로 처리한다. 둘 다 설정(VITE_..._KEY)이 없거나 SDK 로드에
+// 실패하면 조용히 데모 로그인(onGoogleClick/onKakaoClick)으로 대체된다 — 다만 SDK가 정상
+// 로드된 뒤 사용자가 로그인 자체를 취소/실패한 경우(예: 팝업을 닫음)는 데모 로그인으로
+// 대신 들어가면 사용자가 의도하지 않은 로그인이 되어버리니, 그 경우는 아무 것도 하지 않는다.
+import { useState } from 'react'
 import { useLanguage } from '../../context/languageContextValue'
+import { GoogleSignInButton } from './GoogleSignInButton'
+import { isKakaoLoginConfigured, loadKakaoSdkScript, loginWithKakao } from '../../lib/kakaoAuth'
 
 interface SocialLoginButtonsProps {
   onGoogleClick?: () => void
+  onGoogleCredential?: (idToken: string) => void
   onKakaoClick?: () => void
+  onKakaoCredential?: (accessToken: string) => void
 }
 
-export function SocialLoginButtons({ onGoogleClick, onKakaoClick }: SocialLoginButtonsProps) {
+export function SocialLoginButtons({
+  onGoogleClick,
+  onGoogleCredential,
+  onKakaoClick,
+  onKakaoCredential,
+}: SocialLoginButtonsProps) {
   const { t } = useLanguage()
+  const [googleUnavailable, setGoogleUnavailable] = useState(false)
+  // 카카오 로그인 팝업은 우리 화면이 아니라 카카오 SDK가 직접 띄우는 별도 브라우저 창이라, 이미
+  // 카카오에 로그인돼 있으면 뜨자마자 바로 닫혀버린다 — 그 사이 우리 화면이 아무 반응도 없으면
+  // 마치 아무 일도 안 일어난 것처럼 보여서, 버튼을 누른 순간부터 로딩 상태를 보여준다.
+  const [kakaoPending, setKakaoPending] = useState(false)
+
+  async function handleKakaoClick() {
+    if (!isKakaoLoginConfigured()) {
+      onKakaoClick?.()
+      return
+    }
+
+    setKakaoPending(true)
+
+    try {
+      await loadKakaoSdkScript()
+    } catch (error) {
+      console.error('Kakao SDK failed to load:', error)
+      onKakaoClick?.()
+      setKakaoPending(false)
+      return
+    }
+
+    try {
+      const accessToken = await loginWithKakao()
+      onKakaoCredential?.(accessToken)
+    } catch (error) {
+      // SDK는 정상 로드됐지만 사용자가 팝업을 닫는 등 실제 로그인 자체를 취소/실패한 경우 —
+      // 데모 계정으로 대신 들어가진 않고 다시 시도할 수 있게 두되, 원인 파악을 위해 콘솔에는
+      // 남겨둔다(예: 카카오 개발자 콘솔에 Web 플랫폼 도메인이 등록 안 된 경우 여기서 실패한다).
+      console.error('Kakao login failed:', error)
+    } finally {
+      setKakaoPending(false)
+    }
+  }
 
   return (
     <div className="space-y-3">
-      <button
-        type="button"
-        onClick={onGoogleClick}
-        className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-      >
-        <GoogleGlyph />
-        {t('auth.googleContinue')}
-      </button>
+      {!googleUnavailable ? (
+        <GoogleSignInButton
+          onCredential={(idToken) => onGoogleCredential?.(idToken)}
+          onUnavailable={() => setGoogleUnavailable(true)}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={onGoogleClick}
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          <GoogleGlyph />
+          {t('auth.googleContinue')}
+        </button>
+      )}
 
       <button
         type="button"
-        onClick={onKakaoClick}
-        className="flex w-full items-center justify-center gap-2 rounded-full bg-[#FEE500] px-4 py-2.5 text-sm font-medium text-[#191600] transition-colors hover:brightness-95"
+        onClick={handleKakaoClick}
+        disabled={kakaoPending}
+        aria-busy={kakaoPending}
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-[#FEE500] px-4 py-2.5 text-sm font-medium text-[#191600] transition-colors hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-70"
       >
-        <KakaoGlyph />
-        {t('auth.kakaoContinue')}
+        {kakaoPending ? (
+          t('auth.socialLoginInProgress')
+        ) : (
+          <>
+            <KakaoGlyph />
+            {t('auth.kakaoContinue')}
+          </>
+        )}
       </button>
     </div>
   )

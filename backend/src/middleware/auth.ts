@@ -1,5 +1,5 @@
-// 두 가지 인증 미들웨어를 나눠둔 이유: trips/favorites처럼 항상 로그인이 필요한 라우터는
-// requireAuth를, community 목록/상세처럼 비로그인도 볼 수 있지만 로그인 시 liked 같은
+// 두 가지 인증 미들웨어를 나눠둔 이유: trips/favorites/community 상세처럼 항상 로그인이 필요한
+// 라우터는 requireAuth를, community 목록처럼 비로그인도 둘러볼 수 있지만 로그인 시 liked 같은
 // 개인화 정보를 덧붙여야 하는 라우터는 optionalAuth를 쓴다.
 import type { NextFunction, Request, Response } from 'express'
 import { verifyToken } from '../lib/jwt.js'

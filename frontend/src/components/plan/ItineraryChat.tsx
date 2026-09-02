@@ -42,11 +42,19 @@ export function ItineraryChat({ onSendMessage, title, greeting, placeholder }: I
   const [pending, setPending] = useState(false)
   const inputId = useId()
   const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // 메시지가 늘어나거나 "···" 응답 대기 표시가 뜰 때마다 최신 메시지가 보이도록 아래로 스크롤한다.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages, pending])
+
+  // 응답을 기다리는 동안 입력창이 disabled 상태가 되면서 포커스를 잃는다 — 그대로 두면 답장이 온
+  // 뒤에도 포커스가 안 돌아와서 매번 마우스로 다시 클릭해야 한다. pending이 풀리는 시점마다(초기
+  // 마운트 포함) 입력창에 포커스를 되돌려서 이어서 바로 타이핑할 수 있게 한다.
+  useEffect(() => {
+    if (!pending) inputRef.current?.focus()
+  }, [pending])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -103,6 +111,7 @@ export function ItineraryChat({ onSendMessage, title, greeting, placeholder }: I
         </label>
         <input
           id={inputId}
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={resolvedPlaceholder}

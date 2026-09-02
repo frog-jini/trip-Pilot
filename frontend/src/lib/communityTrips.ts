@@ -1,5 +1,6 @@
-// 커뮤니티(다른 사람이 공유한 일정) API 클라이언트. 목록/상세 조회는 비로그인도 가능하고(token이
-// null이어도 동작), 좋아요·공유·삭제는 로그인이 필요하다 — 실제 인증 여부 판단은 백엔드가 한다.
+// 커뮤니티(다른 사람이 공유한 일정) API 클라이언트. 목록 조회는 비로그인도 가능하지만(token이
+// null이어도 동작), 상세 조회·조회수 기록·좋아요·공유·삭제는 로그인이 필요하다 — 실제 인증
+// 여부 판단은 백엔드가 한다.
 import type { TripItinerary } from './tripPlan'
 import { apiRequest, ApiError } from './apiClient'
 
@@ -68,9 +69,10 @@ export async function toggleCommunityLike(
   return fromApiTrip(trip)
 }
 
-export async function recordCommunityView(id: string, fetchImpl?: typeof fetch): Promise<number> {
+export async function recordCommunityView(token: string | null, id: string, fetchImpl?: typeof fetch): Promise<number> {
   const { views } = await apiRequest<{ views: number }>(`/api/community/${id}/view`, {
     method: 'POST',
+    token,
     fetchImpl,
   })
   return views

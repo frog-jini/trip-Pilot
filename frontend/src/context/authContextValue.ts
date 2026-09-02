@@ -11,8 +11,10 @@ export interface AuthContextValue {
   signup: (email: string, password: string) => Promise<boolean>
   checkEmailAvailable: (email: string) => Promise<boolean>
   loginWithDemoAccount: (email: string) => Promise<boolean>
+  loginWithGoogle: (idToken: string) => Promise<boolean>
+  loginWithKakao: (accessToken: string) => Promise<boolean>
   logout: () => void
-  updateEmail: (email: string) => Promise<boolean>
+  updateNickname: (nickname: string) => Promise<boolean>
   updatePassword: (currentPassword: string, newPassword: string) => Promise<boolean>
   deleteAccount: () => Promise<void>
 }

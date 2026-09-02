@@ -133,6 +133,24 @@ function normalizeFullWidthDigits(message: string): string {
   return message.replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// 영어처럼 공백으로 단어가 구분되는 언어의 키워드는 \b(단어 경계)로 감싸서 매칭해야
+// "train" 안의 "rain", "hotel" 안의 "hot"처럼 다른 단어에 우연히 포함된 부분 문자열을
+// 날씨 키워드로 오인식하지 않는다. 반면 한국어/일본어는 조사가 공백 없이 바로 붙어서
+// (예: "비가") \b가 애초에 성립하지 않으므로, 라틴 문자로만 이뤄진 키워드에만 적용한다.
+const ASCII_WORD_KEYWORD = /^[a-z0-9][a-z0-9\s'-]*$/i
+
+function keywordMatches(lowerMessage: string, keyword: string): boolean {
+  const lowerKeyword = keyword.toLowerCase()
+  if (ASCII_WORD_KEYWORD.test(lowerKeyword)) {
+    return new RegExp(`\\b${escapeRegExp(lowerKeyword)}\\b`).test(lowerMessage)
+  }
+  return lowerMessage.includes(lowerKeyword)
+}
+
 /** 메시지에서 "3일차", "3일", "둘째 날" 같은 일차 표현을 찾아 숫자로 반환한다. 없으면 null. */
 function parseDay(message: string, config: LanguageIntentConfig): number | null {
   const numeric = message.match(config.numericDayPattern)
@@ -152,7 +170,7 @@ function parseDay(message: string, config: LanguageIntentConfig): number | null 
 function parseWeatherKeyword(message: string, config: LanguageIntentConfig): WeatherKeyword | null {
   const lowerMessage = message.toLowerCase()
   for (const [keywords, weather] of config.weatherKeywordGroups) {
-    if (keywords.some((keyword) => lowerMessage.includes(keyword.toLowerCase()))) return weather
+    if (keywords.some((keyword) => keywordMatches(lowerMessage, keyword))) return weather
   }
   return null
 }

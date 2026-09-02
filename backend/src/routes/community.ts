@@ -1,5 +1,7 @@
-// 커뮤니티(다른 사용자의 공유 일정) 라우터. 목록/상세/조회수 증가는 비로그인도 가능하고,
-// 공유(등록)·수정·삭제·좋아요는 로그인 + 본인 게시글에 대해서만 가능하다.
+// 커뮤니티(다른 사용자의 공유 일정) 라우터. 목록은 로그인 없이도 둘러볼 수 있어야
+// 서비스를 처음 보는 사람도 "이런 걸 하는 서비스구나"를 알 수 있다 — 대신 개별 일정의
+// 상세(및 그때 함께 오르는 조회수)는 로그인해야만 볼 수 있다. 공유(등록)·수정·삭제·좋아요는
+// 그중에서도 본인 게시글에 대해서만 가능하다.
 import { randomUUID } from 'node:crypto'
 import { Router } from 'express'
 import { pool } from '../db/pool.js'
@@ -58,7 +60,7 @@ communityRouter.get('/mine/:tripId', requireAuth, async (req: AuthedRequest, res
   res.json({ trip: await fetchCommunityTrip(row.id, req.userId) })
 })
 
-communityRouter.get('/:id', optionalAuth, async (req: AuthedRequest, res) => {
+communityRouter.get('/:id', requireAuth, async (req: AuthedRequest, res) => {
   const trip = await fetchCommunityTrip(req.params.id as string, req.userId)
 
   if (!trip) {
@@ -95,8 +97,10 @@ communityRouter.post('/', requireAuth, async (req: AuthedRequest, res) => {
     return
   }
 
-  const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [req.userId])
-  const author = userResult.rows[0]?.email ?? '익명 여행자'
+  // 닉네임이 있으면 그걸(구글 이름/카카오 닉네임/직접 설정한 닉네임), 없으면 이메일을 대신
+  // 쓴다 — 화면에서 로그인한 사람을 나타낼 때(Header.tsx)와 같은 우선순위를 맞춘 것.
+  const userResult = await pool.query('SELECT email, nickname FROM users WHERE id = $1', [req.userId])
+  const author = userResult.rows[0]?.nickname ?? userResult.rows[0]?.email ?? '익명 여행자'
 
   const id = randomUUID()
   await pool.query(
@@ -200,10 +204,9 @@ communityRouter.post('/:id/like', requireAuth, async (req: AuthedRequest, res) =
   res.json({ trip })
 })
 
-// 인증 미들웨어가 아예 없다 — 조회수는 누구나(비로그인 포함) 올릴 수 있어야 한다.
 // INSERT ... ON CONFLICT DO UPDATE로 "없으면 1, 있으면 +1"을 한 번의 쿼리로 원자적으로 처리해서
 // 동시 요청이 와도 조회수가 누락되지 않는다.
-communityRouter.post('/:id/view', async (req, res) => {
+communityRouter.post('/:id/view', requireAuth, async (req, res) => {
   await pool.query(
     `INSERT INTO community_trip_views (community_trip_id, view_count)
      VALUES ($1, 1)

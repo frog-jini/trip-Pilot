@@ -132,6 +132,27 @@ describe('PlanChatPage', () => {
     expect(await screen.findByText(/몇 명/)).toBeInTheDocument()
   })
 
+  it('tells the user their travel style wasn\'t recognized instead of silently repeating the same question', async () => {
+    const user = userEvent.setup()
+    signIn()
+    renderPlanChatPage(createFakeTripsServer())
+
+    await user.type(
+      screen.getByLabelText('메시지 입력'),
+      '도쿄 2박3일로 2명이서 예산은 각 50만원씩',
+    )
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    await screen.findByText(/어떤 여행 스타일/)
+
+    // 등록된 스타일 키워드(관광/맛집/쇼핑/힐링/가족/커플/혼자)에 없는 답을 하면, 같은 질문을
+    // 말없이 반복하는 대신 이해하지 못했다는 걸 알려줘야 한다 — 안 그러면 사용자 눈에는 봇이
+    // 멈춘 것처럼 보인다.
+    await user.type(screen.getByLabelText('메시지 입력'), '액티비티 위주로')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/이해하지 못했어요/)).toBeInTheDocument()
+  })
+
   it('builds up the itinerary across multiple messages and creates the trip once everything is known', async () => {
     const user = userEvent.setup()
     signIn()

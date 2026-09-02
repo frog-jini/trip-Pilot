@@ -51,7 +51,7 @@ export function Header({ fetchWeather }: HeaderProps = {}) {
               aria-label={t('header.profile')}
               className="hidden text-sm text-slate-600 hover:text-primary-600 sm:inline dark:text-slate-300 dark:hover:text-primary-400"
             >
-              {user.email}
+              {user.nickname ?? user.email}
             </Link>
             <Link
               to="/trips"

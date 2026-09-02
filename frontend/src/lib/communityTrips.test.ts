@@ -65,13 +65,20 @@ describe('getCommunityTrips', () => {
 describe('getCommunityTrip', () => {
   it('returns the matching trip by id', async () => {
     const server = createFakeApiServer({ communityTrips: seedTrips() })
-    const trip = await getCommunityTrip('jeju-healing', null, server.fetchImpl)
+    const trip = await getCommunityTrip('jeju-healing', 'user-1', server.fetchImpl)
     expect(trip?.author).toBe('민지')
   })
 
   it('returns null for an unknown id', async () => {
     const server = createFakeApiServer()
-    expect(await getCommunityTrip('does-not-exist', null, server.fetchImpl)).toBeNull()
+    expect(await getCommunityTrip('does-not-exist', 'user-1', server.fetchImpl)).toBeNull()
+  })
+
+  // 상세 조회는 로그인이 필요하다(목록과 달리) — backend/src/routes/community.ts의
+  // GET /:id가 requireAuth인 것과 맞춘 것.
+  it('rejects when logged out', async () => {
+    const server = createFakeApiServer({ communityTrips: seedTrips() })
+    await expect(getCommunityTrip('jeju-healing', null, server.fetchImpl)).rejects.toThrow()
   })
 })
 
@@ -92,8 +99,13 @@ describe('toggleCommunityLike', () => {
 describe('recordCommunityView', () => {
   it('increments and returns the view count', async () => {
     const server = createFakeApiServer({ communityTrips: seedTrips() })
-    expect(await recordCommunityView('jeju-healing', server.fetchImpl)).toBe(3201)
-    expect(await recordCommunityView('jeju-healing', server.fetchImpl)).toBe(3202)
+    expect(await recordCommunityView('user-1', 'jeju-healing', server.fetchImpl)).toBe(3201)
+    expect(await recordCommunityView('user-1', 'jeju-healing', server.fetchImpl)).toBe(3202)
+  })
+
+  it('rejects when logged out', async () => {
+    const server = createFakeApiServer({ communityTrips: seedTrips() })
+    await expect(recordCommunityView(null, 'jeju-healing', server.fetchImpl)).rejects.toThrow()
   })
 })
 
@@ -145,7 +157,7 @@ describe('updateCommunityTrip', () => {
     expect(updated.tag).toBe('쇼핑 중심')
     expect(updated.itinerary).toEqual(editedItinerary)
 
-    const fetched = await getCommunityTrip(published.id, null, server.fetchImpl)
+    const fetched = await getCommunityTrip(published.id, 'user-1', server.fetchImpl)
     expect(fetched?.tag).toBe('쇼핑 중심')
     expect(fetched?.itinerary).toEqual(editedItinerary)
   })

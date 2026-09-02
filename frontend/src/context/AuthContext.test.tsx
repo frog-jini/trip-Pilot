@@ -8,7 +8,7 @@ import { useAuth } from './authContextValue'
 import { readStoredToken, readStoredUser, writeStoredToken, writeStoredUser } from '../lib/authStorage'
 import { createFakeAuthServer } from '../test/fakeAuthServer'
 
-// login/signup/updateEmail/updatePassword가 실패 시 throw 대신 boolean(false)을 돌려주므로,
+// login/signup/updateNickname/updatePassword가 실패 시 throw 대신 boolean(false)을 돌려주므로,
 // 버튼 클릭 결과를 화면 텍스트로 남겨서 성공/실패 둘 다 눈으로 확인할 수 있게 한다.
 function TestConsumer() {
   const {
@@ -17,8 +17,10 @@ function TestConsumer() {
     signup,
     checkEmailAvailable,
     loginWithDemoAccount,
+    loginWithGoogle,
+    loginWithKakao,
     logout,
-    updateEmail,
+    updateNickname,
     updatePassword,
     deleteAccount,
   } = useAuth()
@@ -42,7 +44,13 @@ function TestConsumer() {
         이메일 확인 실행
       </button>
       <button onClick={() => run('demo', () => loginWithDemoAccount('demo@example.com'))}>데모 로그인 실행</button>
-      <button onClick={() => run('updateEmail', () => updateEmail('new@example.com'))}>이메일 변경 실행</button>
+      <button onClick={() => run('google', () => loginWithGoogle('google-sub-1|google@example.com'))}>
+        구글 로그인 실행
+      </button>
+      <button onClick={() => run('kakao', () => loginWithKakao('kakao-token-1|kakao@example.com'))}>
+        카카오 로그인 실행
+      </button>
+      <button onClick={() => run('updateNickname', () => updateNickname('개굴'))}>닉네임 변경 실행</button>
       <button onClick={() => run('updatePassword', () => updatePassword('password1', 'newpassword1'))}>
         비밀번호 변경 실행
       </button>
@@ -182,6 +190,26 @@ describe('AuthContext', () => {
     expect(server.users.size).toBe(1)
   })
 
+  it('logs in with google using the server-verified profile', async () => {
+    const user = userEvent.setup()
+    const { fetchImpl } = createFakeAuthServer()
+    renderWithServer(fetchImpl)
+
+    await user.click(screen.getByRole('button', { name: '구글 로그인 실행' }))
+
+    expect(await screen.findByText('로그인됨: google@example.com')).toBeInTheDocument()
+  })
+
+  it('logs in with kakao using the server-verified profile', async () => {
+    const user = userEvent.setup()
+    const { fetchImpl } = createFakeAuthServer()
+    renderWithServer(fetchImpl)
+
+    await user.click(screen.getByRole('button', { name: '카카오 로그인 실행' }))
+
+    expect(await screen.findByText('로그인됨: kakao@example.com')).toBeInTheDocument()
+  })
+
   it('logout clears the user and storage', async () => {
     const user = userEvent.setup()
     writeStoredUser({ id: '1', email: 'saved@example.com' })
@@ -196,7 +224,7 @@ describe('AuthContext', () => {
     expect(readStoredToken()).toBeNull()
   })
 
-  it('updates the email and persists it', async () => {
+  it('updates the nickname independently of the email', async () => {
     const user = userEvent.setup()
     const server = createFakeAuthServer()
     server.users.set('login@example.com', { id: '1', email: 'login@example.com', password: 'password1' })
@@ -204,26 +232,10 @@ describe('AuthContext', () => {
 
     await user.click(screen.getByRole('button', { name: '로그인 실행' }))
     await screen.findByText('로그인됨: login@example.com')
-    await user.click(screen.getByRole('button', { name: '이메일 변경 실행' }))
+    await user.click(screen.getByRole('button', { name: '닉네임 변경 실행' }))
 
-    expect(await screen.findByText('로그인됨: new@example.com')).toBeInTheDocument()
-    expect(await screen.findByText('결과: updateEmail:true')).toBeInTheDocument()
-    expect(readStoredUser()).toMatchObject({ email: 'new@example.com' })
-  })
-
-  it('rejects updating to an email already registered by someone else', async () => {
-    const user = userEvent.setup()
-    const server = createFakeAuthServer()
-    server.users.set('login@example.com', { id: '1', email: 'login@example.com', password: 'password1' })
-    server.users.set('new@example.com', { id: '2', email: 'new@example.com', password: 'password2' })
-    renderWithServer(server.fetchImpl)
-
-    await user.click(screen.getByRole('button', { name: '로그인 실행' }))
-    await screen.findByText('로그인됨: login@example.com')
-    await user.click(screen.getByRole('button', { name: '이메일 변경 실행' }))
-
-    expect(await screen.findByText('결과: updateEmail:false')).toBeInTheDocument()
-    expect(screen.getByText('로그인됨: login@example.com')).toBeInTheDocument()
+    expect(await screen.findByText('결과: updateNickname:true')).toBeInTheDocument()
+    expect(readStoredUser()).toMatchObject({ email: 'login@example.com', nickname: '개굴' })
   })
 
   it('changes the password when the current password matches', async () => {

@@ -69,6 +69,14 @@ describe('Header', () => {
     expect(screen.queryByRole('link', { name: '로그인' })).not.toBeInTheDocument()
   })
 
+  it('shows the nickname instead of the email when the account has one (google/kakao login)', () => {
+    writeStoredUser({ email: 'kakao-1@kakaouser.trippilot.invalid', nickname: '여행가는곰' })
+    renderHeader()
+
+    expect(screen.getByText('여행가는곰')).toBeInTheDocument()
+    expect(screen.queryByText('kakao-1@kakaouser.trippilot.invalid')).not.toBeInTheDocument()
+  })
+
   it('does not render the favorites or trips links when logged out', () => {
     renderHeader()
     expect(screen.queryByRole('link', { name: '즐겨찾기' })).not.toBeInTheDocument()
