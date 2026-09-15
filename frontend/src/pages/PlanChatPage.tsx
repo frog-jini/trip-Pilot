@@ -11,6 +11,7 @@ import { createActivityHistory, generatePlan } from '../lib/generatePlan'
 import { addTrip } from '../lib/tripsStorage'
 import {
   isTripPlanReady,
+  nextRequiredField,
   nextTripPlanQuestion,
   parseTripPlanMessage,
   parseTripPlanMessageWithAi,
@@ -49,6 +50,10 @@ export function PlanChatPage({
   const [engineLoading, setEngineLoading] = useState(() => isSupported())
   const [loadProgressPercent, setLoadProgressPercent] = useState(0)
   const engineRef = useRef<ChatEngine | null>(null)
+  // 방금 봇이 실제로 물어본 필드가 뭔지 기억해둔다 — 첫 메시지 시점엔 destination이 이미
+  // "다음에 채워야 할 필드"라도 아직 그 질문을 콕 집어 던진 적이 없으므로(인사말만 보여줬을 뿐),
+  // "값이 안 바뀌었다"만으로 판단하면 첫 메시지부터 오탐(이해 못 했다고 오해)한다.
+  const lastAskedFieldRef = useRef<ReturnType<typeof nextRequiredField>>(null)
 
   useEffect(() => {
     if (!isSupported()) return
@@ -89,13 +94,21 @@ export function PlanChatPage({
     setValues(updated)
 
     if (!isTripPlanReady(updated)) {
-      // 스타일 질문에 답했는데 등록된 키워드(관광/맛집/쇼핑 등)와 하나도 안 맞으면 styles가 그대로라
-      // nextTripPlanQuestion()이 같은 질문을 무한 반복하게 된다 — 사용자 입장에선 봇이 멈춘 것처럼
-      // 보이므로, 이 경우엔 "이해 못 했다"는 걸 알려주는 별도 문구로 답한다.
-      const wasAskedAboutStyles = nextTripPlanQuestion(values) === 'plan.questionStyles'
-      const styleNotRecognized = wasAskedAboutStyles && updated.styles.length === values.styles.length
-      if (styleNotRecognized) return reply('plan.chatPlanStyleNotRecognized')
+      // 방금 물어본 필드의 답을 이해하지 못해 그 필드 값이 그대로면(스타일뿐 아니라 목적지/인원/예산도
+      // 마찬가지) nextTripPlanQuestion()이 같은 질문을 무한 반복하게 된다 — 사용자 입장에선 봇이
+      // 멈춘 것처럼 보이므로, 이 경우엔 "이해 못 했다"는 걸 알려주는 별도 문구로 답한다.
+      const pendingField = nextRequiredField(values)
+      const wasAskedAboutPendingField = pendingField !== null && pendingField === lastAskedFieldRef.current
+      const pendingFieldUnchanged =
+        wasAskedAboutPendingField &&
+        (Array.isArray(values[pendingField])
+          ? (values[pendingField] as unknown[]).length === (updated[pendingField] as unknown[]).length
+          : values[pendingField] === updated[pendingField])
+      if (pendingFieldUnchanged) {
+        return reply(pendingField === 'styles' ? 'plan.chatPlanStyleNotRecognized' : 'plan.chatPlanFieldNotRecognized')
+      }
 
+      lastAskedFieldRef.current = nextRequiredField(updated)
       const questionKey = nextTripPlanQuestion(updated)
       return reply(questionKey ?? 'plan.chatPlanGreeting')
     }

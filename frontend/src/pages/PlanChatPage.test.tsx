@@ -91,20 +91,25 @@ describe('PlanChatPage', () => {
     await user.click(screen.getByRole('button', { name: '送信' }))
     expect(await screen.findByText(/どこへ旅行したいですか/)).toBeInTheDocument()
 
-    // ja → en: the earlier ja reply re-renders in English too (same question, retranslated),
-    // so there are two matching bubbles now — that's the intended retranslation behavior.
+    // ja → en: switching language alone retranslates that still-pending destination question
+    // bubble into English — no new message needed to see it change.
     await user.click(screen.getByRole('button', { name: 'English' }))
-    await user.type(screen.getByLabelText('Message input'), 'hello')
-    await user.click(screen.getByRole('button', { name: 'Send' }))
-    expect(await screen.findAllByText(/Where would you like to travel/)).toHaveLength(2)
+    expect(await screen.findByText(/Where would you like to travel/)).toBeInTheDocument()
     expect(screen.queryByText(/どこへ旅行したいですか/)).not.toBeInTheDocument()
 
-    // en → ko: all three replies so far re-render in Korean.
+    // Answering now (in English) actually supplies the destination, so the conversation
+    // moves on to the next question instead of repeating the same one.
+    await user.type(screen.getByLabelText('Message input'), 'Tokyo')
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+    expect(await screen.findByText(/how many people/i)).toBeInTheDocument()
+
+    // en → ko: both the earlier (now historical) destination question and the newer
+    // travelers question re-render in Korean.
     await user.click(screen.getByRole('button', { name: '한국어' }))
-    await user.type(screen.getByLabelText('메시지 입력'), '안녕')
-    await user.click(screen.getByRole('button', { name: '보내기' }))
-    expect(await screen.findAllByText(/어디로 여행 가고 싶으세요/)).toHaveLength(3)
+    expect(await screen.findByText(/어디로 여행 가고 싶으세요/)).toBeInTheDocument()
+    expect(await screen.findByText(/몇 명/)).toBeInTheDocument()
     expect(screen.queryByText(/Where would you like to travel/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/how many people/i)).not.toBeInTheDocument()
   })
 
   it('renders the heading and an AI chat with no itinerary table shown up front', () => {
@@ -148,6 +153,23 @@ describe('PlanChatPage', () => {
     // 말없이 반복하는 대신 이해하지 못했다는 걸 알려줘야 한다 — 안 그러면 사용자 눈에는 봇이
     // 멈춘 것처럼 보인다.
     await user.type(screen.getByLabelText('메시지 입력'), '액티비티 위주로')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/이해하지 못했어요/)).toBeInTheDocument()
+  })
+
+  // 스타일뿐 아니라 다른 필드(인원 등)를 물었을 때도, 답을 이해하지 못해 값이 그대로면 같은 질문을
+  // 말없이 반복하는 대신 이해하지 못했다는 걸 알려줘야 한다.
+  it('tells the user their answer wasn\'t understood for non-style fields too, instead of silently repeating the question', async () => {
+    const user = userEvent.setup()
+    signIn()
+    renderPlanChatPage(createFakeTripsServer())
+
+    await user.type(screen.getByLabelText('메시지 입력'), '도쿄 2박3일로 쇼핑 위주 일정 짜줘, 예산은 100만원')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    await screen.findByText(/몇 명/)
+
+    await user.type(screen.getByLabelText('메시지 입력'), '음... 잘 모르겠어요')
     await user.click(screen.getByRole('button', { name: '보내기' }))
 
     expect(await screen.findByText(/이해하지 못했어요/)).toBeInTheDocument()

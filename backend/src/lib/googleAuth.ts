@@ -18,6 +18,9 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfil
     const ticket = await client.verifyIdToken({ idToken, audience })
     const payload = ticket.getPayload()
     if (!payload?.sub || !payload.email) return null
+    // 이메일 인증이 안 된 계정이면 이걸로 기존 비밀번호 계정에 자동 연결/생성이 되면 안 되므로
+    // 여기서 거른다 — 검증 실패와 동일하게 취급(auth.ts에서 401로 응답).
+    if (!payload.email_verified) return null
     return { sub: payload.sub, email: payload.email, name: payload.name ?? null }
   } catch {
     return null

@@ -48,6 +48,22 @@ describe('loadGoogleIdentityScript', () => {
     await expect(promise).rejects.toThrow()
   })
 
+  it('creates a fresh script tag on retry instead of reusing the failed one', async () => {
+    const { loadGoogleIdentityScript } = await import('./googleIdentity')
+
+    const firstAttempt = loadGoogleIdentityScript()
+    const failedScript = document.head.querySelector(GOOGLE_SCRIPT_SELECTOR)!
+    failedScript.dispatchEvent(new Event('error'))
+    await expect(firstAttempt).rejects.toThrow()
+
+    const secondAttempt = loadGoogleIdentityScript()
+    const retryScript = document.head.querySelector(GOOGLE_SCRIPT_SELECTOR)!
+    expect(retryScript).not.toBe(failedScript)
+    retryScript.dispatchEvent(new Event('load'))
+
+    await expect(secondAttempt).resolves.toBeUndefined()
+  })
+
   it('rejects if loading stalls past the timeout (blocked script, dead network, etc.)', async () => {
     vi.useFakeTimers()
     const { loadGoogleIdentityScript } = await import('./googleIdentity')

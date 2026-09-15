@@ -93,7 +93,7 @@ export function createFakeAuthServer(): FakeAuthServer {
         found = { id, email, password: '' }
         usersByEmail.set(email, found)
       }
-      found.nickname = name ?? found.nickname ?? null
+      if (found.nickname == null) found.nickname = name ?? null
       return jsonResponse(200, { token: found.id, user: { id: found.id, email: found.email, nickname: found.nickname } })
     }
 
@@ -106,7 +106,7 @@ export function createFakeAuthServer(): FakeAuthServer {
         found = { id, email, password: '' }
         usersByEmail.set(email, found)
       }
-      found.nickname = nickname ?? found.nickname ?? null
+      if (found.nickname == null) found.nickname = nickname ?? null
       return jsonResponse(200, { token: found.id, user: { id: found.id, email: found.email, nickname: found.nickname } })
     }
 

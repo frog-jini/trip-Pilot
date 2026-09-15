@@ -7,6 +7,7 @@ import { hashPassword, verifyPassword } from '../lib/password.js'
 import { signToken } from '../lib/jwt.js'
 import { verifyGoogleIdToken } from '../lib/googleAuth.js'
 import { verifyKakaoAccessToken } from '../lib/kakaoAuth.js'
+import { findOrCreateOAuthUser } from '../lib/oauthUser.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 
 export const authRouter = Router()
@@ -84,45 +85,15 @@ authRouter.post('/oauth/google', async (req, res) => {
     return
   }
 
-  const byProvider = await pool.query('SELECT id, email FROM users WHERE provider = $1 AND provider_id = $2', [
-    'google',
-    profile.sub,
-  ])
-  if (byProvider.rows.length > 0) {
-    const user = byProvider.rows[0]
-    // 닉네임은 최초 로그인 때 한 번만 구글 이름으로 채우고, 그 뒤로는 건드리지 않는다 —
-    // 사용자가 /account에서 닉네임을 직접 바꿔놨는데 다음 로그인 때 구글 이름으로 도로
-    // 덮어써버리면 "바꾼 게 안 바뀐 것처럼" 보이기 때문(COALESCE로 NULL일 때만 채움).
-    const updated = await pool.query('UPDATE users SET nickname = COALESCE(nickname, $1) WHERE id = $2 RETURNING nickname', [
-      profile.name,
-      user.id,
-    ])
-    res.json({ token: signToken(user.id), user: { id: user.id, email: user.email, nickname: updated.rows[0].nickname } })
-    return
-  }
-
-  // 같은 이메일로 이미 이메일/비밀번호 계정이 있으면, 새 계정을 또 만들지 않고 그 계정에
-  // 구글 로그인을 연결한다 — 이후로는 둘 중 어느 방법으로 로그인해도 같은 계정으로 들어온다.
-  const byEmail = await pool.query('SELECT id, email FROM users WHERE email = $1', [profile.email])
-  if (byEmail.rows.length > 0) {
-    const user = byEmail.rows[0]
-    const updated = await pool.query(
-      'UPDATE users SET provider = $1, provider_id = $2, nickname = COALESCE(nickname, $3) WHERE id = $4 RETURNING nickname',
-      ['google', profile.sub, profile.name, user.id],
-    )
-    res.json({ token: signToken(user.id), user: { id: user.id, email: user.email, nickname: updated.rows[0].nickname } })
-    return
-  }
-
-  const id = randomUUID()
-  await pool.query('INSERT INTO users (id, email, provider, provider_id, nickname) VALUES ($1, $2, $3, $4, $5)', [
-    id,
-    profile.email,
-    'google',
-    profile.sub,
-    profile.name,
-  ])
-  res.status(201).json({ token: signToken(id), user: { id, email: profile.email, nickname: profile.name } })
+  const user = await findOrCreateOAuthUser({
+    provider: 'google',
+    providerId: profile.sub,
+    email: profile.email,
+    name: profile.name,
+  })
+  res
+    .status(user.created ? 201 : 200)
+    .json({ token: signToken(user.id), user: { id: user.id, email: user.email, nickname: user.nickname } })
 })
 
 // 프론트(Kakao SDK)가 로그인 성공 후 받은 access_token을 그대로 보내주면, 서버가 카카오
@@ -144,48 +115,15 @@ authRouter.post('/oauth/kakao', async (req, res) => {
     return
   }
 
-  const byProvider = await pool.query('SELECT id, email FROM users WHERE provider = $1 AND provider_id = $2', [
-    'kakao',
-    profile.id,
-  ])
-  if (byProvider.rows.length > 0) {
-    const user = byProvider.rows[0]
-    // 닉네임은 최초 로그인 때 한 번만 카카오 닉네임으로 채우고, 그 뒤로는 건드리지 않는다 —
-    // 사용자가 /account에서 닉네임을 직접 바꿔놨는데 다음 로그인 때 카카오 닉네임으로 도로
-    // 덮어써버리면 "바꾼 게 안 바뀐 것처럼" 보이기 때문(COALESCE로 NULL일 때만 채움).
-    const updated = await pool.query('UPDATE users SET nickname = COALESCE(nickname, $1) WHERE id = $2 RETURNING nickname', [
-      profile.nickname,
-      user.id,
-    ])
-    res.json({ token: signToken(user.id), user: { id: user.id, email: user.email, nickname: updated.rows[0].nickname } })
-    return
-  }
-
-  // 같은 이메일로 이미 이메일/비밀번호 계정이 있으면(카카오가 실제 이메일을 준 경우에 한해),
-  // 새 계정을 또 만들지 않고 그 계정에 카카오 로그인을 연결한다.
-  if (profile.email) {
-    const byEmail = await pool.query('SELECT id, email FROM users WHERE email = $1', [profile.email])
-    if (byEmail.rows.length > 0) {
-      const user = byEmail.rows[0]
-      const updated = await pool.query(
-        'UPDATE users SET provider = $1, provider_id = $2, nickname = COALESCE(nickname, $3) WHERE id = $4 RETURNING nickname',
-        ['kakao', profile.id, profile.nickname, user.id],
-      )
-      res.json({ token: signToken(user.id), user: { id: user.id, email: user.email, nickname: updated.rows[0].nickname } })
-      return
-    }
-  }
-
-  const id = randomUUID()
-  const email = profile.email ?? `kakao-${profile.id}@kakaouser.trippilot.invalid`
-  await pool.query('INSERT INTO users (id, email, provider, provider_id, nickname) VALUES ($1, $2, $3, $4, $5)', [
-    id,
-    email,
-    'kakao',
-    profile.id,
-    profile.nickname,
-  ])
-  res.status(201).json({ token: signToken(id), user: { id, email, nickname: profile.nickname } })
+  const user = await findOrCreateOAuthUser({
+    provider: 'kakao',
+    providerId: profile.id,
+    email: profile.email,
+    name: profile.nickname,
+  })
+  res
+    .status(user.created ? 201 : 200)
+    .json({ token: signToken(user.id), user: { id: user.id, email: user.email, nickname: user.nickname } })
 })
 
 authRouter.get('/me', requireAuth, async (req: AuthedRequest, res) => {

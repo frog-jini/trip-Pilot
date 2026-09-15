@@ -9,8 +9,8 @@ vi.mock('google-auth-library', () => ({
   OAuth2Client: vi.fn().mockImplementation(() => ({
     verifyIdToken: vi.fn(async ({ idToken }: { idToken: string }) => {
       if (idToken === 'invalid-token') throw new Error('invalid token')
-      const [sub, email, name] = idToken.split('|')
-      return { getPayload: () => ({ sub, email, name }) }
+      const [sub, email, name, emailVerified] = idToken.split('|')
+      return { getPayload: () => ({ sub, email, name, email_verified: emailVerified !== 'unverified' }) }
     }),
   })),
 }))
@@ -345,6 +345,14 @@ describe('POST /api/auth/oauth/google', () => {
 
   it('rejects a token that fails google verification', async () => {
     const response = await request(app).post('/api/auth/oauth/google').send({ idToken: 'invalid-token' })
+    expect(response.status).toBe(401)
+  })
+
+  // 이메일 인증이 안 된 구글 계정으로 기존 비밀번호 계정에 몰래 연결/로그인하지 못하게 막는다.
+  it('rejects a token whose email is not verified', async () => {
+    const response = await request(app)
+      .post('/api/auth/oauth/google')
+      .send({ idToken: 'google-sub-3|unverified@example.com|이름|unverified' })
     expect(response.status).toBe(401)
   })
 

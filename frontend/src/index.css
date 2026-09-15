@@ -49,7 +49,7 @@
 @layer base {
   html {
     font-family: var(--font-sans);
-    color-scheme: dark;
+    color-scheme: light dark;
   }
 
   body {

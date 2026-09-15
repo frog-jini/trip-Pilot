@@ -26,7 +26,7 @@ export async function verifyKakaoAccessToken(accessToken: string): Promise<Kakao
     if (!response.ok) return null
 
     const data = (await response.json()) as KakaoUserMeResponse
-    if (!data.id) return null
+    if (typeof data.id !== 'number') return null
 
     // 이메일 동의를 안 했거나 인증되지 않은 계정이면 카카오가 이메일을 안 줄 수 있다 — 그 경우
     // null로 두고, 호출부(auth.ts)가 자리표시 이메일을 대신 채운다.

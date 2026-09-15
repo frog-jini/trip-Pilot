@@ -33,6 +33,7 @@ export function isKakaoLoginConfigured(): boolean {
 }
 
 let loadPromise: Promise<void> | null = null
+let previousAttemptFailed = false
 
 export function loadKakaoSdkScript(): Promise<void> {
   if (getKakaoGlobal()) return Promise.resolve()
@@ -40,11 +41,14 @@ export function loadKakaoSdkScript(): Promise<void> {
 
   const scriptLoad = new Promise<void>((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>(`script[src="${KAKAO_SDK_SRC}"]`)
-    if (existing) {
+    if (existing && !previousAttemptFailed) {
       existing.addEventListener('load', () => resolve())
       existing.addEventListener('error', () => reject(new Error('카카오 로그인 스크립트를 불러오지 못했어요.')))
       return
     }
+    // 이전 시도가 실패한 태그는 error 이벤트가 이미 한 번 발생해서 다시는 안 온다 — 재사용하지
+    // 않고 지운 뒤 새로 만들어야 재시도가 실제로 로드를 다시 시도한다.
+    existing?.remove()
 
     const script = document.createElement('script')
     script.src = KAKAO_SDK_SRC
@@ -70,6 +74,7 @@ export function loadKakaoSdkScript(): Promise<void> {
   }).catch((error: unknown) => {
     // 실패한 시도를 캐싱해두면 재시도할 방법이 없으니, 다음 호출에서 다시 시도할 수 있게 비운다.
     loadPromise = null
+    previousAttemptFailed = true
     throw error
   })
 

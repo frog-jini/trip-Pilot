@@ -36,7 +36,7 @@ export function AccountPage() {
     }
 
     const success = await updateNickname(nickname.trim())
-    setNicknameMessage(success ? t('account.nicknameChanged') : t('account.nicknameRequired'))
+    setNicknameMessage(success ? t('account.nicknameChanged') : t('account.nicknameUpdateFailed'))
   }
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {

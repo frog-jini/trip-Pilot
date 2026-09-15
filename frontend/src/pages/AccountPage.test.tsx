@@ -77,6 +77,22 @@ describe('AccountPage', () => {
     expect(await screen.findByText('닉네임을 입력해주세요.')).toBeInTheDocument()
   })
 
+  // 닉네임 값 자체는 비어있지 않은데 API 호출이 실패하는 경우(예: 만료된 토큰으로 401)는
+  // "닉네임을 입력해주세요"가 아니라 별도의 실패 메시지를 보여줘야 한다.
+  it('shows a distinct error when the nickname update fails for a reason other than an empty value', async () => {
+    const user = userEvent.setup()
+    const server = createFakeAuthServer()
+    signIn(server)
+    writeStoredToken('expired-token')
+    renderAt('/account', server.fetchImpl)
+
+    await user.type(screen.getByLabelText('닉네임'), '개굴')
+    await user.click(screen.getByRole('button', { name: '닉네임 저장' }))
+
+    expect(await screen.findByText('닉네임을 변경하지 못했어요. 다시 로그인한 뒤 시도해주세요.')).toBeInTheDocument()
+    expect(screen.queryByText('닉네임을 입력해주세요.')).not.toBeInTheDocument()
+  })
+
   it('renders the password change form', () => {
     const server = createFakeAuthServer()
     signIn(server)

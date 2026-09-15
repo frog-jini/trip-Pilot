@@ -6,6 +6,7 @@
 // "일"과 한자 "日"은 서로 다른 유니코드 문자), 키워드/정규식을 언어별로 따로 둔다. language를
 // 넘기지 않으면 기존 동작(한국어)과 동일하게 'ko'로 취급한다.
 import type { Language } from './i18n/language'
+import { keywordMatches, normalizeFullWidthDigits } from './chatTextMatch'
 
 export type WeatherKeyword = 'rain' | 'snow' | 'storm' | 'dust' | 'heat' | 'cold' | 'clear' | 'outdoor'
 
@@ -124,31 +125,6 @@ const CONFIG_BY_LANGUAGE: Record<Language, LanguageIntentConfig> = {
 
 function configFor(language: Language): LanguageIntentConfig {
   return CONFIG_BY_LANGUAGE[language] ?? KO_CONFIG
-}
-
-// 일본어 IME는 숫자를 반각(半角, ASCII 0-9)이 아니라 전각(全角, １２３...)으로 입력하는 경우가
-// 흔한데, 정규식의 \d는 반각 숫자만 매칭한다. 그래서 매칭 전에 전각 숫자를 반각으로 정규화해둔다
-// (언어 무관하게 적용해도 다른 언어 입력에는 전각 숫자가 나타나지 않으므로 부작용이 없다).
-function normalizeFullWidthDigits(message: string): string {
-  return message.replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-// 영어처럼 공백으로 단어가 구분되는 언어의 키워드는 \b(단어 경계)로 감싸서 매칭해야
-// "train" 안의 "rain", "hotel" 안의 "hot"처럼 다른 단어에 우연히 포함된 부분 문자열을
-// 날씨 키워드로 오인식하지 않는다. 반면 한국어/일본어는 조사가 공백 없이 바로 붙어서
-// (예: "비가") \b가 애초에 성립하지 않으므로, 라틴 문자로만 이뤄진 키워드에만 적용한다.
-const ASCII_WORD_KEYWORD = /^[a-z0-9][a-z0-9\s'-]*$/i
-
-function keywordMatches(lowerMessage: string, keyword: string): boolean {
-  const lowerKeyword = keyword.toLowerCase()
-  if (ASCII_WORD_KEYWORD.test(lowerKeyword)) {
-    return new RegExp(`\\b${escapeRegExp(lowerKeyword)}\\b`).test(lowerMessage)
-  }
-  return lowerMessage.includes(lowerKeyword)
 }
 
 /** 메시지에서 "3일차", "3일", "둘째 날" 같은 일차 표현을 찾아 숫자로 반환한다. 없으면 null. */

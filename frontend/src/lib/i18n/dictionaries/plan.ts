@@ -85,6 +85,7 @@ export const planDictionary: Record<Language, Record<string, string>> = {
     chatPlanCompleted: '일정을 완성했어요! 확인해보세요.',
     chatPlanStyleNotRecognized:
       '죄송해요, 어떤 스타일인지 이해하지 못했어요. 다음 중에서 골라 말씀해주세요: 관광, 맛집, 쇼핑, 힐링, 가족, 커플, 혼자',
+    chatPlanFieldNotRecognized: '죄송해요, 말씀하신 내용을 이해하지 못했어요. 다시 한 번 말씀해주시겠어요?',
 
     chatDefaultTitle: 'AI에게 날씨를 알려주세요',
     chatDefaultGreeting:
@@ -177,6 +178,7 @@ export const planDictionary: Record<Language, Record<string, string>> = {
     chatPlanCompleted: 'Your itinerary is ready! Take a look.',
     chatPlanStyleNotRecognized:
       "Sorry, I didn't recognize that travel style. Please choose from: sightseeing, food, shopping, relaxing, family, couple, solo",
+    chatPlanFieldNotRecognized: "Sorry, I didn't understand that. Could you say it again?",
 
     chatDefaultTitle: 'Tell the AI About the Weather',
     chatDefaultGreeting:
@@ -269,6 +271,7 @@ export const planDictionary: Record<Language, Record<string, string>> = {
     chatPlanCompleted: 'プランが完成しました!ご確認ください。',
     chatPlanStyleNotRecognized:
       'すみません、どの旅のスタイルか理解できませんでした。次の中から選んでください: 観光、グルメ、ショッピング、癒し、家族、カップル、一人旅',
+    chatPlanFieldNotRecognized: 'すみません、おっしゃった内容を理解できませんでした。もう一度お願いできますか?',
 
     chatDefaultTitle: 'AIに天気を教えてください',
     chatDefaultGreeting:
