@@ -8,6 +8,7 @@
 import { DURATION_OPTIONS, STYLE_OPTIONS, type Duration, type TravelStyle, type TripPlanFormValues } from './tripPlan'
 import { validateTripPlanForm, type TripPlanFormErrors } from './tripPlanValidation'
 import { findCatalogKey } from './destinationCatalog'
+import { parseAddActivityIntent } from './chatIntent'
 import type { Language } from './i18n/language'
 import { keywordMatches, normalizeFullWidthDigits } from './chatTextMatch'
 
@@ -188,6 +189,10 @@ export function parseTripPlanMessage(
   const travelersCount = Number.isFinite(effectiveTravelers) && effectiveTravelers > 0 ? effectiveTravelers : null
   const budget = extractBudget(normalizedMessage, config, travelersCount)
   const newStyles = extractStyles(normalizedMessage, config)
+  // "2일차에는 디즈니랜드 포함해서 계획 세워줘" 처럼 특정 일차를 콕 집은 요청은, 지금 봇이 뭘
+  // 물어보고 있었는지와 무관하게 항상 인식해야 한다(다른 필드들과 같은 이유) — chatIntent.ts가
+  // 이미 트립 상세 채팅("2일차에 디즈니랜드 추가해줘")용으로 검증된 파서라 그대로 재사용한다.
+  const { day: mustVisitDay, activity: mustVisitActivity } = parseAddActivityIntent(normalizedMessage, language)
 
   // 다른 필드가 이미 이 메시지에서 뽑혔다면(예: "2박 3일") 그 숫자를 인원/예산으로 오인식하지
   // 않도록, 정규식이 인원/예산을 못 찾았을 때만 그리고 방금 그 질문을 하고 있던 상황에서만
@@ -204,7 +209,24 @@ export function parseTripPlanMessage(
     travelers: travelers ?? fallbackTravelers ?? current.travelers,
     budget: budget ?? fallbackBudget ?? current.budget,
     styles: newStyles.length > 0 ? Array.from(new Set([...current.styles, ...newStyles])) : current.styles,
+    dayMustVisit:
+      mustVisitDay !== null && mustVisitActivity !== null
+        ? mergeDayMustVisit(current.dayMustVisit, mustVisitDay, mustVisitActivity)
+        : current.dayMustVisit,
   }
+}
+
+// 같은 일차에 같은 곳을 두 번 말해도(예: "2일차에 디즈니랜드 추가해줘" 이후 "2일차에 디즈니랜드도
+// 포함해줘") 중복으로 쌓이지 않도록 그 일차 배열에 없을 때만 덧붙인다. current를 직접 변형하지
+// 않고 새 객체를 만들어 돌려준다 — 이 파일의 다른 필드들과 같은 불변성 스타일.
+function mergeDayMustVisit(
+  current: TripPlanFormValues['dayMustVisit'],
+  day: number,
+  activity: string,
+): TripPlanFormValues['dayMustVisit'] {
+  const existing = current[day] ?? []
+  if (existing.includes(activity)) return current
+  return { ...current, [day]: [...existing, activity] }
 }
 
 interface AiExtractedFields {

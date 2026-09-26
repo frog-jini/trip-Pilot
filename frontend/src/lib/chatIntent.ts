@@ -26,6 +26,8 @@ interface LanguageIntentConfig {
   weatherKeywordGroups: [string[], WeatherKeyword][]
   addKeyword: RegExp
   removeKeyword: RegExp
+  // "추천해줘", "뭐가 있어" 같이 이름을 콕 집지 않고 제안을 구하는 요청을 감지하는 패턴.
+  recommendKeyword: RegExp
   // 활동명 앞뒤에 붙는 조사/전치사를 떼어내기 위한 패턴(없으면 생략).
   trailingParticle?: RegExp
   // 한국어/일본어는 "활동명 + 추가해줘"(활동명이 키워드 앞), 영어는 "add 활동명"(활동명이 키워드
@@ -58,6 +60,8 @@ const KO_CONFIG: LanguageIntentConfig = {
   ],
   addKeyword: /추가|넣어|포함/,
   removeKeyword: /삭제|빼줘|빼주|제거|없애/,
+  // "추천해줘"/"추천해줄래" 같은 "추천" 계열과, 아무것도 지목하지 않고 묻는 "뭐가 있어"/"뭐 있어"를 함께 잡는다.
+  recommendKeyword: /추천|뭐\s*(가\s*)?있/,
   trailingParticle: /(을|를)$/,
   activityPosition: 'before',
 }
@@ -86,6 +90,7 @@ const JA_CONFIG: LanguageIntentConfig = {
   ],
   addKeyword: /追加|入れて|含めて/,
   removeKeyword: /削除|消して|抜いて|外して/,
+  recommendKeyword: /おすすめ|提案して/,
   trailingParticle: /(を|は|が)$/,
   activityPosition: 'before',
 }
@@ -114,6 +119,7 @@ const EN_CONFIG: LanguageIntentConfig = {
   ],
   addKeyword: /\badd\b|\binclude\b/i,
   removeKeyword: /\bremove\b|\bdelete\b|\btake out\b/i,
+  recommendKeyword: /\brecommend\b|\bsuggest\b|\bwhat do you have\b/i,
   activityPosition: 'after',
 }
 
@@ -159,6 +165,15 @@ export function parseWeatherIntent(message: string, language: Language = 'ko'): 
     day: parseDay(normalizedMessage, config),
     weather: parseWeatherKeyword(normalizedMessage, config),
   }
+}
+
+// parseDay와 달리 parseWeatherKeyword는 실제 날씨 단어가 있어야만 값을 채워준다(게이트 있음).
+// 그래서 "이 메시지가 날씨 얘기였는지"를 판단할 땐 WeatherIntent.day가 아니라 이 함수를 써야
+// 한다 — day는 "3일차"처럼 다른 의도(추가/삭제)의 답변에서도 얼마든지 등장하기 때문에, day가
+// 있다는 사실만으로 날씨 의도라고 단정하면 안 된다(TripDetailPage의 신고된 회귀 원인).
+export function hasWeatherKeyword(message: string, language: Language = 'ko'): boolean {
+  const config = configFor(language)
+  return parseWeatherKeyword(normalizeFullWidthDigits(message), config) !== null
 }
 
 export interface AddActivityIntent {
@@ -209,4 +224,22 @@ export function parseAddActivityIntent(message: string, language: Language = 'ko
 export function parseRemoveActivityIntent(message: string, language: Language = 'ko'): AddActivityIntent {
   const config = configFor(language)
   return parseDayScopedActivity(normalizeFullWidthDigits(message), config.removeKeyword, config)
+}
+
+export interface RecommendIntent {
+  day: number | null
+}
+
+/**
+ * "추천해줘", "뭐가 있어", "2일차에 뭐 넣을지 추천해줘" 같이 이름을 콕 집지 않고 제안을 구하는
+ * 요청인지 판단한다. add/remove와 달리 사용자가 지목한 대상이 애초에 없는 요청이라 activity
+ * 필드는 두지 않는다. 일차는 있으면 그 날 위주로, 없으면 전체 일정에서 골라도 되는 선택 정보라
+ * add/remove/weather처럼 "완성될 때까지 기억"할 필요가 없다 — 그래서 매치되지 않으면 아예 null을
+ * 돌려줘서(day:null인 객체가 아니라) 호출부가 "이 의도가 아니었다"를 한 번에 구분할 수 있게 한다.
+ */
+export function parseRecommendIntent(message: string, language: Language = 'ko'): RecommendIntent | null {
+  const config = configFor(language)
+  const normalizedMessage = normalizeFullWidthDigits(message)
+  if (!config.recommendKeyword.test(normalizedMessage)) return null
+  return { day: parseDay(normalizedMessage, config) }
 }

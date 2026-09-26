@@ -215,17 +215,23 @@ function dateForDayIndex(startDate: string | undefined, dayIndex: number): strin
 export function generatePlan(values: TripPlanFormValues): TripItinerary {
   const dayCount = DURATION_OPTIONS.indexOf(values.duration) + 2
   const mustVisitPlaces = parseMustVisit(values.mustVisit)
+  // 이 필드가 생기기 전에 만들어진 트립은 값 자체가 없을 수 있으니 ?? {}로 방어한다(tripPlan.ts 참고).
+  const dayMustVisit = values.dayMustVisit ?? {}
 
   // 일정 전체에서 한 번 등장한 활동은 다시 넣지 않기 위한 집합. 필수 방문지도 미리 넣어둬서
-  // 스타일 추천이 같은 곳을 중복 제안하지 않게 한다.
-  const used = new Set<string>(mustVisitPlaces)
+  // 스타일 추천이 같은 곳을 중복 제안하지 않게 한다 — dayMustVisit도 어느 일차의 것이든 여기
+  // 미리 다 넣어둬야, 예컨대 2일차에 콕 집어 말한 곳을 스타일 추천이 다른 날에 또 추천하지 않는다.
+  const used = new Set<string>([...mustVisitPlaces, ...Object.values(dayMustVisit).flat()])
 
   const days: DayPlan[] = Array.from({ length: dayCount }, (_, index) => {
     const dayNumber = index + 1
     const styleActivities = values.styles.flatMap((style) =>
       takeFreshActivities(style, index, values.destination, used),
     )
-    const activities = dayNumber === 1 ? [...mustVisitPlaces, ...styleActivities] : styleActivities
+    // 자유 텍스트 mustVisit은 1일차에만, 일차별 dayMustVisit은 해당 일차에 꽂아 넣는다 —
+    // 1일차는 둘 다 해당되면 둘 다(mustVisit 먼저) 앞에 붙는다.
+    const dayMustVisitPlaces = dayMustVisit[dayNumber] ?? []
+    const activities = [...(dayNumber === 1 ? mustVisitPlaces : []), ...dayMustVisitPlaces, ...styleActivities]
 
     return {
       day: dayNumber,
@@ -310,6 +316,24 @@ function findReplacementActivity(
   return null
 }
 
+/**
+ * 채팅 "추천해줘" 의도(TripDetailPage.applyRecommend)에서 쓰는 제안 생성기. findReplacementActivity가
+ * "빈 자리 하나"를 채울 후보 하나만 찾는 것과 달리, 이건 화면에 그냥 보여줄 몇 개(count)를 한 번에
+ * 모은다 — 선택된 스타일들의 확장 풀을 전부 합친 뒤, 지금 일정 어디에도 없는 활동만 앞에서부터
+ * 골라낸다. 같은 장소가 여러 스타일 풀에 동시에 속할 수 있어(예: 시장 = 맛집이자 쇼핑) 중복은
+ * 제거해서 "추천 두 개"라고 해놓고 같은 이름이 두 번 나오는 일이 없게 한다.
+ */
+export function findRecommendations(
+  styles: TravelStyle[],
+  destination: string,
+  everShown: string[],
+  count = 2,
+): string[] {
+  const pool = styles.flatMap((style) => getExtendedStylePool(style, destination))
+  const fresh = [...new Set(pool)].filter((activity) => !everShown.includes(activity))
+  return fresh.slice(0, count)
+}
+
 const ALL_STYLES = Object.keys(STYLE_ACTIVITIES) as TravelStyle[]
 // 실외 판별은 지금은 활동 하나하나가 아니라 "어느 스타일 풀에 속하는가"로만 정교화되어 있다 —
 // 관광/가족 스타일 활동은 실외로, 나머지는 실내로 간주하는 단순화. WX-04 참고(더 정교한 태깅은 미구현).
@@ -320,6 +344,27 @@ const INDOOR_STYLE_PRIORITY: TravelStyle[] = ['쇼핑 중심', '맛집 중심', 
 // "이름"으로만 다루는 다른 모듈들과 달리, 여기서는 그 이름이 실외인지 판단하려고 스타일이 필요하다.
 export function findStyleForActivity(activity: string, destination: string): TravelStyle | null {
   return ALL_STYLES.find((style) => getExtendedStylePool(style, destination).includes(activity)) ?? null
+}
+
+// 채팅에서 사용자가 말한 활동명(예: "디즈니랜드")은 카탈로그 활동의 실제 저장 표기(예: "도쿄
+// 디즈니랜드 (우라야스)")와 글자 그대로 다른 경우가 많다 — getStylePool()이 카탈로그 장소 이름
+// 뒤에 지역을 덧붙이기 때문. 그래서 삭제 같은 명령을 실행하기 전에 사용자가 말한 이름을 실제
+// 저장된 이름으로 느슨하게 맞춰준다: 정확히 일치하면 그것을 최우선으로(기존 동작 유지), 아니면
+// 저장된 이름이 사용자 표현을 부분 포함하면 그것을(가장 흔한 경우 — "디즈니랜드"가 "도쿄
+// 디즈니랜드 (우라야스)"에 포함), 그것도 없으면 반대로 사용자 표현이 저장된 이름을 부분 포함하면
+// 그것을(사용자가 더 구체적으로 말했거나, 추출 과정에서 잡소리가 섞여 들어온 경우) 순서로 찾는다.
+export function findMatchingActivity(activities: string[], spoken: string): string | null {
+  const exact = activities.find((activity) => activity === spoken)
+  if (exact) return exact
+
+  const normalizedSpoken = spoken.trim().toLowerCase()
+  const containsSpoken = activities.find((activity) => activity.toLowerCase().includes(normalizedSpoken))
+  if (containsSpoken) return containsSpoken
+
+  const containedInSpoken = activities.find((activity) => normalizedSpoken.includes(activity.toLowerCase()))
+  if (containedInSpoken) return containedInSpoken
+
+  return null
 }
 
 function isOutdoorActivity(activity: string, destination: string): boolean {

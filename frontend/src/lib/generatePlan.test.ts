@@ -7,6 +7,7 @@ import {
   addDay,
   applyWeatherAdjustment,
   createActivityHistory,
+  findMatchingActivity,
   generatePlan,
   getSwapOptions,
   removeActivity,
@@ -65,6 +66,43 @@ describe('generatePlan', () => {
 
     expect(plan.days[0].activities.slice(0, 3)).toEqual(['츠키지 시장', '도쿄타워', '긴자'])
     expect(plan.days[1].activities).not.toContain('츠키지 시장')
+  })
+
+  it('places a day-specific must-visit spot on exactly that day, and nowhere else', () => {
+    const plan = generatePlan({
+      ...emptyTripPlanFormValues,
+      duration: '2박 3일',
+      styles: ['맛집 중심'],
+      dayMustVisit: { 2: ['디즈니랜드'] },
+    })
+
+    expect(plan.days[1].activities).toContain('디즈니랜드')
+    expect(plan.days[0].activities).not.toContain('디즈니랜드')
+    expect(plan.days[2].activities).not.toContain('디즈니랜드')
+    // 스타일 기반 추천이 이미 명시적으로 넣은 장소를 다시 추천하지 않아야 한다.
+    expect(plan.days.flatMap((d) => d.activities).filter((a) => a === '디즈니랜드')).toHaveLength(1)
+  })
+
+  it('keeps both the free-text mustVisit and day 1 dayMustVisit spots on day 1', () => {
+    const plan = generatePlan({
+      ...emptyTripPlanFormValues,
+      duration: '1박 2일',
+      styles: ['맛집 중심'],
+      mustVisit: '츠키지 시장',
+      dayMustVisit: { 1: ['디즈니랜드'] },
+    })
+
+    expect(plan.days[0].activities.slice(0, 2)).toEqual(['츠키지 시장', '디즈니랜드'])
+  })
+
+  it('treats a trip with no dayMustVisit field at all (old persisted trips) the same as an empty one', () => {
+    const withoutDayMustVisit: Partial<TripPlanFormValues> = {
+      ...emptyTripPlanFormValues,
+      duration: '1박 2일',
+      styles: ['맛집 중심'],
+    }
+    delete withoutDayMustVisit.dayMustVisit
+    expect(() => generatePlan(withoutDayMustVisit as TripPlanFormValues)).not.toThrow()
   })
 
   it('recommends several spots per day even when only one style is selected', () => {
@@ -472,6 +510,33 @@ describe('generatePlan with a catalog-supported destination', () => {
     })
 
     expect(plan.days[0].activities).toContain('테마파크 가족 나들이')
+  })
+})
+
+describe('findMatchingActivity', () => {
+  it('returns the exact match when one exists, even if a substring match also exists', () => {
+    const activities = ['도쿄타워', '도쿄타워 근처 카페']
+    expect(findMatchingActivity(activities, '도쿄타워')).toBe('도쿄타워')
+  })
+
+  it('matches when the spoken name is a substring of a stored catalog-style name', () => {
+    const activities = ['도쿄 디즈니랜드 (우라야스)', '아사쿠사 관광']
+    expect(findMatchingActivity(activities, '디즈니랜드')).toBe('도쿄 디즈니랜드 (우라야스)')
+  })
+
+  it('matches when a stored name is a substring of the spoken name', () => {
+    const activities = ['디즈니랜드', '아사쿠사 관광']
+    expect(findMatchingActivity(activities, '도쿄 디즈니랜드 좀 가고 싶어')).toBe('디즈니랜드')
+  })
+
+  it('returns null when nothing matches at all', () => {
+    const activities = ['도쿄타워', '아사쿠사 관광']
+    expect(findMatchingActivity(activities, '디즈니랜드')).toBeNull()
+  })
+
+  it('matches case-insensitively', () => {
+    const activities = ['Tokyo Disneyland (Urayasu)']
+    expect(findMatchingActivity(activities, 'disneyland')).toBe('Tokyo Disneyland (Urayasu)')
   })
 })
 

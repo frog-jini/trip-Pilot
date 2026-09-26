@@ -22,6 +22,12 @@ export const tripDetailDictionary: Record<Language, Record<string, string>> = {
     chatPlaceholder: '예: 2일차에 디즈니랜드 추가해줘',
     clarificationMessage:
       '어느 날짜에 어떤 날씨인지, 또는 몇 일차에 어떤 활동을 추가·삭제하고 싶은지 알려주시겠어요? 예: "둘째 날은 비가 올 것 같아", "2일차에 디즈니랜드 추가해줘", "2일차에 디즈니랜드 삭제해줘"',
+    clarificationNeedWeather: '{{day}}일차인 건 알겠어요! 어떤 날씨인지도 알려주시겠어요? 예: "비가 올 것 같아"',
+    clarificationNeedDay: '{{weather}} 소식이군요! 몇 일차인지도 알려주시겠어요? 예: "2일차"',
+    clarificationNeedDayForAdd: "'{{activity}}'을(를) 추가하려는 건 알겠어요! 몇 일차에 추가할까요? 예: \"2일차\"",
+    clarificationNeedActivityForAdd: '{{day}}일차에 추가하려는 건 알겠어요! 어떤 활동을 추가할까요?',
+    clarificationNeedDayForRemove: "'{{activity}}'을(를) 삭제하려는 건 알겠어요! 몇 일차에서 삭제할까요? 예: \"2일차\"",
+    clarificationNeedActivityForRemove: '{{day}}일차에서 삭제하려는 건 알겠어요! 어떤 활동을 삭제할까요?',
     tripUnavailable: '지금은 일정 정보를 불러올 수 없어요.',
     dayNotInTrip: '{{day}}일차는 이번 일정에 없어요. 1~{{max}}일차 중에서 알려주세요.',
 
@@ -45,12 +51,18 @@ export const tripDetailDictionary: Record<Language, Record<string, string>> = {
 
     chatDayFull: '{{day}}일차는 이미 일정이 가득 찼어요. 더 이상 활동을 추가할 수 없어요.',
     chatActivityNotFound: "{{day}}일차에 '{{activity}}'이(가) 없어요.",
+    chatActivityOnOtherDay: "{{day}}일차에 '{{activity}}'이(가) 없어요. {{actualDay}}일차에 있어요.",
     chatRemovedWithReplacement: "{{day}}일차에서 '{{activity}}'을(를) 삭제했어요. AI가 '{{added}}'을(를) 대신 추천했어요.",
     chatRemoved: "{{day}}일차에서 '{{activity}}'을(를) 삭제했어요.",
     chatWeatherClear: '{{day}}일차는 {{weather}}라니 잘 됐네요! 일정은 그대로 둘게요.',
     chatWeatherOutdoorRestored: '{{day}}일차를 다시 {{weather}} 활동 위주로 되돌렸어요.',
     chatWeatherAlreadyIndoor: '{{day}}일차는 이미 실내 위주 일정이라 그대로 유지할게요.',
     chatWeatherAdjusted: '{{day}}일차에 {{weather}} 소식을 반영해서 실외 관광 대신 쇼핑몰과 실내 관광 위주로 변경했어요.',
+    chatRecommend:
+      "'{{activities}}' 어떠세요? 마음에 들면 \"2일차에 추가해줘\"처럼 말씀해주시면 바로 넣어드릴게요.",
+    chatRecommendForDay:
+      "{{day}}일차에는 '{{activities}}' 어떠세요? 마음에 들면 \"{{day}}일차에 추가해줘\"라고 말씀해주세요.",
+    chatRecommendNothingNew: '지금 선택한 스타일로는 새로 추천할 만한 활동을 찾지 못했어요. 다른 스타일을 선택해보시겠어요?',
   },
   en: {
     weatherRain: 'rain',
@@ -72,6 +84,13 @@ export const tripDetailDictionary: Record<Language, Record<string, string>> = {
     chatPlaceholder: 'e.g. Add Disneyland on day 2',
     clarificationMessage:
       'Could you tell me which day and what weather, or which day and which activity to add/remove? e.g. "it looks like it’ll rain on day two", "add Disneyland on day 2", "remove Disneyland on day 2"',
+    clarificationNeedWeather: 'Got it, day {{day}}! What’s the weather like? e.g. "it looks like it’ll rain"',
+    clarificationNeedDay: 'Got it, {{weather}}! Which day is that for? e.g. "day 2"',
+    clarificationNeedDayForAdd: 'Got it, you want to add "{{activity}}"! Which day should that go on? e.g. "day 2"',
+    clarificationNeedActivityForAdd: 'Got it, day {{day}}! Which activity would you like to add?',
+    clarificationNeedDayForRemove:
+      'Got it, you want to remove "{{activity}}"! Which day should I remove it from? e.g. "day 2"',
+    clarificationNeedActivityForRemove: 'Got it, day {{day}}! Which activity would you like to remove?',
     tripUnavailable: 'Trip information isn’t available right now.',
     dayNotInTrip: 'Day {{day}} isn’t part of this trip. Please pick a day from 1 to {{max}}.',
 
@@ -95,6 +114,7 @@ export const tripDetailDictionary: Record<Language, Record<string, string>> = {
 
     chatDayFull: 'Day {{day}} is already full. No more activities can be added.',
     chatActivityNotFound: '"{{activity}}" isn’t on day {{day}}.',
+    chatActivityOnOtherDay: '"{{activity}}" isn’t on day {{day}}. It’s on day {{actualDay}} instead.',
     chatRemovedWithReplacement: 'Removed "{{activity}}" from day {{day}}. AI suggested "{{added}}" instead.',
     chatRemoved: 'Removed "{{activity}}" from day {{day}}.',
     chatWeatherClear: 'Glad day {{day}} has {{weather}}! I’ll leave the plan as is.',
@@ -102,6 +122,11 @@ export const tripDetailDictionary: Record<Language, Record<string, string>> = {
     chatWeatherAlreadyIndoor: 'Day {{day}} is already mostly indoor, so I’ll keep it as is.',
     chatWeatherAdjusted:
       'Updated day {{day}} for {{weather}} — swapped outdoor sightseeing for a shopping mall and indoor spots.',
+    chatRecommend:
+      'How about "{{activities}}"? Just say something like "add it on day 2" and I’ll add it right away.',
+    chatRecommendForDay:
+      'For day {{day}}, how about "{{activities}}"? Just say "add it on day {{day}}" if you like it.',
+    chatRecommendNothingNew: 'I couldn’t find anything new to suggest with your current styles. Want to try a different one?',
   },
   ja: {
     weatherRain: '雨',
@@ -123,6 +148,12 @@ export const tripDetailDictionary: Record<Language, Record<string, string>> = {
     chatPlaceholder: '例: 2日目にディズニーランドを追加して',
     clarificationMessage:
       'どの日にどんな天気か、または何日目にどんなアクティビティを追加・削除したいか教えていただけますか?例: 「2日目は雨が降りそう」「2日目にディズニーランドを追加して」「2日目のディズニーランドを削除して」',
+    clarificationNeedWeather: '{{day}}日目ですね!どんな天気か教えていただけますか?例:「雨が降りそう」',
+    clarificationNeedDay: '{{weather}}ですね!何日目か教えていただけますか?例:「2日目」',
+    clarificationNeedDayForAdd: '「{{activity}}」を追加したいんですね!何日目に追加しますか?例:「2日目」',
+    clarificationNeedActivityForAdd: '{{day}}日目に追加したいんですね!どのアクティビティを追加しますか?',
+    clarificationNeedDayForRemove: '「{{activity}}」を削除したいんですね!何日目から削除しますか?例:「2日目」',
+    clarificationNeedActivityForRemove: '{{day}}日目から削除したいんですね!どのアクティビティを削除しますか?',
     tripUnavailable: '現在プラン情報を読み込めません。',
     dayNotInTrip: '{{day}}日目はこのプランにありません。1〜{{max}}日目の中から教えてください。',
 
@@ -146,12 +177,17 @@ export const tripDetailDictionary: Record<Language, Record<string, string>> = {
 
     chatDayFull: '{{day}}日目はすでに予定が一杯です。これ以上アクティビティを追加できません。',
     chatActivityNotFound: '{{day}}日目に「{{activity}}」はありません。',
+    chatActivityOnOtherDay: '{{day}}日目に「{{activity}}」はありません。{{actualDay}}日目にあります。',
     chatRemovedWithReplacement: '{{day}}日目の「{{activity}}」を削除しました。AIが代わりに「{{added}}」を提案しました。',
     chatRemoved: '{{day}}日目の「{{activity}}」を削除しました。',
     chatWeatherClear: '{{day}}日目は{{weather}}とのことでよかったです!プランはそのままにしますね。',
     chatWeatherOutdoorRestored: '{{day}}日目を{{weather}}アクティビティ中心に戻しました。',
-    chatWeatherAlreadyIndoor: '{{day}}日目はすでに屋内中心のプランなので、そのままにしますね。',
+    chatWeatherAlreadyIndoor: '{{dy}}日目はすでに屋内中心のプランなので、そのままにしますね。',
     chatWeatherAdjusted:
       '{{day}}日目に{{weather}}情報を反映して、屋外観光の代わりにショッピングモールと屋内観光を中心に変更しました。',
+    chatRecommend: '「{{activities}}」はいかがですか?気に入ったら「2日目に追加して」のように言っていただければすぐ追加します。',
+    chatRecommendForDay:
+      '{{day}}日目には「{{activities}}」はいかがですか?気に入ったら「{{day}}日目に追加して」と言っていただければすぐ追加します。',
+    chatRecommendNothingNew: '今選んでいるスタイルでは新しく提案できるアクティビティが見つかりませんでした。他のスタイルを選んでみますか?',
   },
 }

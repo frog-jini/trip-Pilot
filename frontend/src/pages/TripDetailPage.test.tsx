@@ -492,6 +492,256 @@ describe('TripDetailPage', () => {
     expect(await screen.findByText(/어느 날짜에 어떤 날씨/)).toBeInTheDocument()
   })
 
+  // Regression: "2일차" alone after an unrelated message used to fall all the way back to the
+  // same generic clarification message, as if the day had never been understood at all.
+  it('asks specifically for the weather when only the day is given after an unrelated message', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '어디가고 싶어')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(/어느 날짜에 어떤 날씨/)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('메시지 입력'), '2일차')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/2일차인 건 알겠어요/)).toBeInTheDocument()
+  })
+
+  it('asks specifically for the day when only the weather is given, with no day mentioned', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '비가 올 것 같아')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/비 소식이군요/)).toBeInTheDocument()
+  })
+
+  it('applies the weather action once the day and weather are given across two separate turns (day first)', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+    const originalDay1 = [...trip.itinerary.days[0].activities]
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '1일차')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(/1일차인 건 알겠어요/)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('메시지 입력'), '비가 올 것 같아')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findAllByText(/실내/)).not.toHaveLength(0)
+    const updatedDay1 = serverTrip(server, trip.id).itinerary.days[0].activities
+    expect(updatedDay1).not.toEqual(originalDay1)
+    for (const activity of originalDay1) {
+      expect(updatedDay1).not.toContain(activity)
+    }
+  })
+
+  it('applies the weather action once the day and weather are given across two separate turns (weather first)', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+    const originalDay1 = [...trip.itinerary.days[0].activities]
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '비가 올 것 같아')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(/비 소식이군요/)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('메시지 입력'), '1일차')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findAllByText(/실내/)).not.toHaveLength(0)
+    const updatedDay1 = serverTrip(server, trip.id).itinerary.days[0].activities
+    expect(updatedDay1).not.toEqual(originalDay1)
+    for (const activity of originalDay1) {
+      expect(updatedDay1).not.toContain(activity)
+    }
+  })
+
+  it('does not merge an unrelated add-activity message into a pending weather clarification, and still adds the activity normally', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    // Leaves day 1 pending, waiting on the weather half of the pair.
+    await user.type(await screen.findByLabelText('메시지 입력'), '1일차')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(/1일차인 건 알겠어요/)).toBeInTheDocument()
+
+    // An unrelated add-activity message must still work normally, not get swallowed by the
+    // pending weather slot.
+    await user.type(screen.getByLabelText('메시지 입력'), '2일차에 디즈니랜드 추가해줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(/2일차에.*디즈니랜드.*추가했어요/)).toBeInTheDocument()
+    expect(serverTrip(server, trip.id).itinerary.days[1].activities).toContain('디즈니랜드')
+
+    // The stale "day 1" pending from before the add-activity message must have been cleared —
+    // a weather-only message now should ask for the day again, not silently reuse day 1.
+    await user.type(screen.getByLabelText('메시지 입력'), '비가 올 것 같아')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(/비 소식이군요/)).toBeInTheDocument()
+  })
+
+  // Exact regression reported by the user: a remove request with no day used to fall all the way
+  // back to the fully generic clarification (which happens to mention "which day" among other
+  // things), and the activity name it already gave ('디즈니랜드') was discarded entirely. Answering
+  // with just the day afterward then got misread as completing an imagined WEATHER intent (since
+  // parseWeatherIntent's day extraction has no keyword gate) instead of the remove that was
+  // actually in progress — so the user got asked "what's the weather?" instead of the item being
+  // removed.
+  it('remembers a remove request missing only the day, asks specifically for the day, and completes the removal once the day is given', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['가족 여행'],
+    })
+    expect(trip.itinerary.days[0].activities).toContain('도쿄 디즈니랜드 (우라야스)')
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '디즈니랜드 삭제해줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    // Asks specifically for the day for THIS remove request — not the fully generic clarification.
+    expect(await screen.findByText(/디즈니랜드.*몇 일차에서 삭제할까요/)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('메시지 입력'), '1일차')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    // The removal actually executes — not a "what's the weather?" reply.
+    expect(await screen.findByText(/1일차에서.*도쿄 디즈니랜드 \(우라야스\).*삭제했어요/)).toBeInTheDocument()
+    expect(screen.queryByText(/어떤 날씨/)).not.toBeInTheDocument()
+    expect(serverTrip(server, trip.id).itinerary.days[0].activities).not.toContain('도쿄 디즈니랜드 (우라야스)')
+  })
+
+  // Same shape as the remove regression above, but for add.
+  it('remembers an add request missing only the day, asks specifically for the day, and completes the addition once the day is given', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '디즈니랜드 추가해줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(/디즈니랜드.*몇 일차에 추가할까요/)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('메시지 입력'), '2일차')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/2일차에.*디즈니랜드.*추가했어요/)).toBeInTheDocument()
+    expect(screen.queryByText(/어떤 날씨/)).not.toBeInTheDocument()
+    expect(serverTrip(server, trip.id).itinerary.days[1].activities).toContain('디즈니랜드')
+  })
+
+  // A bare day-only message doesn't short-circuit locally when nothing is pending — the local AI
+  // engine (when loaded) still gets first crack at it, same as any other message the regex parsers
+  // can't fully resolve on their own.
+  it('still lets the local AI engine see a bare day-only message when no add/remove/weather request is pending', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+
+    const complete = vi.fn().mockResolvedValue(JSON.stringify({ action: 'unknown' }))
+    const enginePromise = Promise.resolve({ complete })
+    const loadEngine = vi.fn().mockReturnValue(enginePromise)
+
+    renderAt(server, `/trips/${trip.id}`, undefined, loadEngine, () => true)
+    await act(async () => {
+      await enginePromise
+    })
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '2일차')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(complete).toHaveBeenCalled()
+    expect(await screen.findByText(/2일차인 건 알겠어요/)).toBeInTheDocument()
+  })
+
+  it('keeps giving the generic clarification for two fully unrelated messages in a row', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '안녕')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    expect(await screen.findByText(/어느 날짜에 어떤 날씨/)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('메시지 입력'), '음 글쎄')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findAllByText(/어느 날짜에 어떤 날씨/)).toHaveLength(2)
+    expect(screen.queryByText(/인 건 알겠어요/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/소식이군요/)).not.toBeInTheDocument()
+  })
+
   it('shows a chat title and greeting that mention both weather and adding activities', async () => {
     signIn()
     const server = createFakeApiServer()
@@ -573,6 +823,56 @@ describe('TripDetailPage', () => {
     expect(await screen.findByText(/1일차에서.*디즈니랜드.*삭제했어요/)).toBeInTheDocument()
     expect(screen.queryByText('디즈니랜드')).not.toBeInTheDocument()
     expect(serverTrip(server, trip.id).itinerary.days[0].activities).not.toContain('디즈니랜드')
+  })
+
+  // Regression for the bug where catalog-backed activities are stored as "이름 (지역)"
+  // (getStylePool in generatePlan.ts) but the user naturally says just the short name — an exact
+  // string match against '도쿄 디즈니랜드 (우라야스)' never succeeds for '디즈니랜드'.
+  it('removes a catalog-backed activity by its short spoken name and mentions the full matched name', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['가족 여행'],
+    })
+    expect(trip.itinerary.days[0].activities).toContain('도쿄 디즈니랜드 (우라야스)')
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '1일차에 디즈니랜드 삭제해줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/1일차에서.*도쿄 디즈니랜드 \(우라야스\).*삭제했어요/)).toBeInTheDocument()
+    expect(serverTrip(server, trip.id).itinerary.days[0].activities).not.toContain('도쿄 디즈니랜드 (우라야스)')
+  })
+
+  it('tells the user which day an activity is actually on when it exists but not on the day they specified, and leaves the itinerary unchanged', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['가족 여행'],
+    })
+    // '도쿄 디즈니랜드 (우라야스)' lands on day 1, not day 2 — a plausible "which day was it again?" mix-up.
+    expect(trip.itinerary.days[0].activities).toContain('도쿄 디즈니랜드 (우라야스)')
+    expect(trip.itinerary.days[1].activities).not.toContain('도쿄 디즈니랜드 (우라야스)')
+    const beforeItinerary = serverTrip(server, trip.id).itinerary
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '2일차에 디즈니랜드 삭제해줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(
+      await screen.findByText(/2일차에.*도쿄 디즈니랜드 \(우라야스\).*없어요.*1일차에 있어요/),
+    ).toBeInTheDocument()
+    expect(serverTrip(server, trip.id).itinerary).toEqual(beforeItinerary)
   })
 
   it('tells the user when the activity they asked to remove is not on that day', async () => {
@@ -803,6 +1103,109 @@ describe('TripDetailPage', () => {
     await user.click(screen.getByRole('button', { name: '보내기' }))
 
     expect(await screen.findByText(/어느 날짜에 어떤 날씨인지/)).toBeInTheDocument()
+  })
+
+  // Exact reported repro: "추천해줘" matches none of add/remove/weather, so it either fell to the
+  // local AI engine — which, forced to pick from add_activity/remove_activity/weather/unknown,
+  // hallucinated a weather change (e.g. guessed rain) — or, on a retry, to the generic
+  // clarificationMessage. Neither is a real answer to "recommend something". With 관광 중심 selected
+  // for 일본 도쿄, days 1–3 deterministically place the 6 catalog spots plus the first 3 generic
+  // activities (see generatePlan.ts's takeFreshActivities), so the next fresh generic activities —
+  // '유명 사원 관광' and '구시가지 골목 탐방' — are exactly what should be suggested.
+  it('suggests a fresh, unused activity from the trip’s style when asked to recommend something, via the regex path alone (no AI engine needed)', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+    const beforeItinerary = serverTrip(server, trip.id).itinerary
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '추천해줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/유명 사원 관광/)).toBeInTheDocument()
+    expect(screen.getByText(/구시가지 골목 탐방/)).toBeInTheDocument()
+    // 신고된 버그의 두 증상이 재발하지 않았는지 확인한다: 날씨로 잘못 해석되지도, 일반
+    // 안내문으로 되돌아가지도 않아야 한다.
+    expect(screen.queryByText(/소식을 반영해서/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/몇 일차에 어떤 활동을 추가·삭제하고 싶은지/)).not.toBeInTheDocument()
+    // 추천은 정보 제공일 뿐 일정을 바꾸지 않는다.
+    expect(serverTrip(server, trip.id).itinerary).toEqual(beforeItinerary)
+  })
+
+  it('resolves a recommend request via the regex path even with an AI engine loaded that would otherwise hallucinate a weather change', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+
+    // 신고된 버그를 그대로 재현하는 가짜 엔진 — add_activity/remove_activity/weather/unknown 중
+    // 하나만 고를 수 있던 예전 스키마라면 "추천해줘"를 이해하지 못하고 비가 온다고 잘못
+    // 추측했을 상황이다. 정규식이 먼저 처리되면 이 엔진은 아예 호출되지 않아야 한다.
+    const complete = vi.fn().mockResolvedValue(JSON.stringify({ action: 'weather', day: 1, weather: 'rain' }))
+    const enginePromise = Promise.resolve({ complete })
+    const loadEngine = vi.fn().mockReturnValue(enginePromise)
+
+    renderAt(server, `/trips/${trip.id}`, undefined, loadEngine, () => true)
+    await act(async () => {
+      await enginePromise
+    })
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '추천해줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/유명 사원 관광/)).toBeInTheDocument()
+    expect(complete).not.toHaveBeenCalled()
+  })
+
+  it('scopes a recommend request to a mentioned day without letting the bare day number get absorbed into a weather clarification', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: ['관광 중심'],
+    })
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '2일차에 뭐 넣을지 추천해줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/2일차에는.*유명 사원 관광/)).toBeInTheDocument()
+    expect(screen.queryByText(/어떤 날씨인지도 알려주시겠어요/)).not.toBeInTheDocument()
+  })
+
+  it('falls back to a "nothing new to suggest" reply when the trip has no travel style selected', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const server = createFakeApiServer()
+    const trip = await buildTrip(server, {
+      ...emptyTripPlanFormValues,
+      destination: '일본 도쿄',
+      duration: '2박 3일',
+      styles: [],
+    })
+
+    renderAt(server, `/trips/${trip.id}`)
+
+    await user.type(await screen.findByLabelText('메시지 입력'), '추천해줘')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(await screen.findByText(/새로 추천할 만한 활동을 찾지 못했어요/)).toBeInTheDocument()
   })
 
   it('lets the user pick a concrete alternative place for an activity and persists it', async () => {

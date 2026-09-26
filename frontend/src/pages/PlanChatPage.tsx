@@ -60,8 +60,38 @@ export function PlanChatPage({
 
     let cancelled = false
 
+    // ↓↓↓ 원복용 원본 코드 (데모 확인 끝나면 아래 TEMP DEMO 블록을 지우고 이 주석만 풀면 됨) ↓↓↓
+    // loadEngine((report) => {
+    //   if (!cancelled) setLoadProgressPercent(Math.round(report.progress * 100))
+    // })
+    //   .then((engine) => {
+    //     if (!cancelled) engineRef.current = engine
+    //   })
+    //   .catch(() => {
+    //     // No AI engine available (unsupported browser or load failure) — the rule-based
+    //     // parser already covers the full flow, so we simply keep using it.
+    //   })
+    //   .finally(() => {
+    //     if (!cancelled) setEngineLoading(false)
+    //   })
+    //
+    // return () => {
+    //   cancelled = true
+    // }
+    // ↑↑↑ 원복용 원본 코드 끝 ↑↑↑
+
+    // TEMP DEMO — 캐시 때문에 실제 진행률이 눈 깜빡할 새 0%→100%로 끝나버려서, 화면에 보여주는
+    // 숫자만 일부러 1%씩 천천히 올라가게 만든 코드. 확인 끝나면 지울 것.
+    let displayedPercent = 0
+    let targetPercent = 0
+    const rampInterval = setInterval(() => {
+      if (cancelled || displayedPercent >= targetPercent) return
+      displayedPercent += 1
+      setLoadProgressPercent(displayedPercent)
+    }, 40)
+
     loadEngine((report) => {
-      if (!cancelled) setLoadProgressPercent(Math.round(report.progress * 100))
+      targetPercent = Math.round(report.progress * 100)
     })
       .then((engine) => {
         if (!cancelled) engineRef.current = engine
@@ -71,11 +101,19 @@ export function PlanChatPage({
         // parser already covers the full flow, so we simply keep using it.
       })
       .finally(() => {
-        if (!cancelled) setEngineLoading(false)
+        targetPercent = 100
+        const waitForDisplay = setInterval(() => {
+          if (cancelled || displayedPercent >= 100) {
+            clearInterval(waitForDisplay)
+            clearInterval(rampInterval)
+            if (!cancelled) setEngineLoading(false)
+          }
+        }, 50)
       })
 
     return () => {
       cancelled = true
+      clearInterval(rampInterval)
     }
   }, [loadEngine, isSupported])
 
@@ -104,7 +142,11 @@ export function PlanChatPage({
         (Array.isArray(values[pendingField])
           ? (values[pendingField] as unknown[]).length === (updated[pendingField] as unknown[]).length
           : values[pendingField] === updated[pendingField])
-      if (pendingFieldUnchanged) {
+      // "2일차에는 디즈니랜드 포함해서 계획 세워줘" 같은 메시지는 지금 물어보던 필드(예: 인원)를
+      // 전혀 건드리지 않아 pendingFieldUnchanged가 true가 되지만, dayMustVisit은 분명히 늘었으니
+      // "이해 못 했다"고 답하면 안 된다 — 이럴 땐 이해한 것으로 보고 다음 질문으로 넘어간다.
+      const dayMustVisitChanged = JSON.stringify(values.dayMustVisit) !== JSON.stringify(updated.dayMustVisit)
+      if (pendingFieldUnchanged && !dayMustVisitChanged) {
         return reply(pendingField === 'styles' ? 'plan.chatPlanStyleNotRecognized' : 'plan.chatPlanFieldNotRecognized')
       }
 

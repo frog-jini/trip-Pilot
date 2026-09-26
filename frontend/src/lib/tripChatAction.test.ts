@@ -32,6 +32,7 @@ describe('buildTripChatSystemPrompt', () => {
     expect(prompt).toContain('add_activity')
     expect(prompt).toContain('remove_activity')
     expect(prompt).toContain('weather')
+    expect(prompt).toContain('recommend')
     expect(prompt).toContain('unknown')
   })
 
@@ -67,6 +68,33 @@ describe('parseTripChatActionJson', () => {
 
   it('parses an unknown action', () => {
     expect(parseTripChatActionJson(JSON.stringify({ action: 'unknown' }))).toEqual({ action: 'unknown' })
+  })
+
+  // 신고된 버그의 핵심 수정점: 모델이 "추천해줘" 부류를 add/remove/weather 중 하나로 억지로
+  // 끼워 맞추지(특히 weather로 잘못 추측하지) 않도록, 이 클래스의 요청을 위한 전용 슬롯을 준다.
+  it('parses a valid recommend action with a day', () => {
+    expect(parseTripChatActionJson(JSON.stringify({ action: 'recommend', day: 2 }))).toEqual({
+      action: 'recommend',
+      day: 2,
+    })
+  })
+
+  it('parses a valid recommend action with day explicitly null', () => {
+    expect(parseTripChatActionJson(JSON.stringify({ action: 'recommend', day: null }))).toEqual({
+      action: 'recommend',
+      day: null,
+    })
+  })
+
+  it('parses a recommend action that omits the day field entirely as day: null', () => {
+    expect(parseTripChatActionJson(JSON.stringify({ action: 'recommend' }))).toEqual({
+      action: 'recommend',
+      day: null,
+    })
+  })
+
+  it('returns null when recommend has a non-numeric, non-null day', () => {
+    expect(parseTripChatActionJson(JSON.stringify({ action: 'recommend', day: '2' }))).toBeNull()
   })
 
   it('returns null for malformed JSON', () => {
@@ -110,6 +138,14 @@ describe('resolveTripChatActionWithAi', () => {
     expect(messages[1]).toEqual(priorMessages[0])
     expect(messages[2]).toEqual(priorMessages[1])
     expect(messages[3]).toEqual({ role: 'user', content: '그럼 2일차에는 디즈니랜드도 넣어줘' })
+  })
+
+  it('resolves a recommend action from the model', async () => {
+    const complete = vi.fn().mockResolvedValue(JSON.stringify({ action: 'recommend', day: null }))
+
+    const action = await resolveTripChatActionWithAi('추천해줘', itinerary, [], complete)
+
+    expect(action).toEqual({ action: 'recommend', day: null })
   })
 
   it('falls back to unknown when the model response is not valid JSON', async () => {

@@ -183,6 +183,40 @@ describe('parseTripPlanMessage in Japanese', () => {
   })
 })
 
+describe('parseTripPlanMessage day-specific must-visit intent', () => {
+  it('populates dayMustVisit for a Korean message even with a trailing clause after the keyword', () => {
+    const result = parseTripPlanMessage('2일차에는 디즈니랜드 포함해서 계획 세워줘', baseValues())
+    expect(result.dayMustVisit).toEqual({ 2: ['디즈니랜드'] })
+  })
+
+  it('populates dayMustVisit for an English message', () => {
+    const result = parseTripPlanMessage('add Disneyland on day 2', baseValues(), 'en')
+    expect(result.dayMustVisit).toEqual({ 2: ['Disneyland'] })
+  })
+
+  it('populates dayMustVisit for a Japanese message', () => {
+    const result = parseTripPlanMessage('2日目にディズニーランドを含めて計画を立てて', baseValues(), 'ja')
+    expect(result.dayMustVisit).toEqual({ 2: ['ディズニーランド'] })
+  })
+
+  it('accumulates across separate messages instead of overwriting other days', () => {
+    const first = parseTripPlanMessage('2일차에는 디즈니랜드 포함해서 계획 세워줘', baseValues())
+    const second = parseTripPlanMessage('3일차에는 스시집 넣어줘', first)
+    expect(second.dayMustVisit).toEqual({ 2: ['디즈니랜드'], 3: ['스시집'] })
+  })
+
+  it('does not add the same place twice for the same day', () => {
+    const first = parseTripPlanMessage('2일차에는 디즈니랜드 포함해서 계획 세워줘', baseValues())
+    const second = parseTripPlanMessage('2일차에 디즈니랜드 추가해줘', first)
+    expect(second.dayMustVisit).toEqual({ 2: ['디즈니랜드'] })
+  })
+
+  it('leaves dayMustVisit unchanged when the message has no day-specific must-visit content', () => {
+    const result = parseTripPlanMessage('도쿄 2박3일로 쇼핑 위주 일정 짜줘', baseValues())
+    expect(result.dayMustVisit).toEqual({})
+  })
+})
+
 describe('nextTripPlanQuestion', () => {
   it('asks for the destination first when nothing is known', () => {
     expect(nextTripPlanQuestion(baseValues())).toBe('plan.questionDestination')

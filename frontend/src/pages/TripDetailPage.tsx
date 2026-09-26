@@ -12,6 +12,8 @@ import {
   addNamedActivity,
   applyWeatherAdjustment,
   createActivityHistory,
+  findMatchingActivity,
+  findRecommendations,
   generatePlan,
   getSwapOptions,
   removeActivity,
@@ -23,7 +25,14 @@ import type { TripItinerary } from '../lib/tripPlan'
 import { useAuth } from '../context/authContextValue'
 import { useLanguage } from '../context/languageContextValue'
 import { addFavorite, isFavorited, readFavorites, removeFavorite, type FavoritePlace } from '../lib/favoritesStorage'
-import { parseAddActivityIntent, parseRemoveActivityIntent, parseWeatherIntent, type WeatherKeyword } from '../lib/chatIntent'
+import {
+  hasWeatherKeyword,
+  parseAddActivityIntent,
+  parseRecommendIntent,
+  parseRemoveActivityIntent,
+  parseWeatherIntent,
+  type WeatherKeyword,
+} from '../lib/chatIntent'
 import { setActivityCost } from '../lib/activityCost'
 import { setActivityTime } from '../lib/activityTime'
 import { getMyPublishedTrip, publishTrip, unpublishTrip, updateCommunityTrip } from '../lib/communityTrips'
@@ -42,6 +51,14 @@ const WEATHER_LABEL_KEYS: Record<WeatherKeyword, string> = {
   clear: 'tripDetail.weatherClear',
   outdoor: 'tripDetail.weatherOutdoor',
 }
+
+// "일차만 먼저 말했다"/"활동명만 먼저 말했다"처럼 add/remove/weather 세 의도 중 하나가 아직 덜
+// 채워진 채로 다음 턴을 기다리는 상태 하나를 표현한다. kind별로 필요한 두 번째 조각(activity 또는
+// weather)이 다르므로 태그드 유니온으로 둔다.
+type PendingChatAction =
+  | { kind: 'add'; day: number | null; activity: string | null }
+  | { kind: 'remove'; day: number | null; activity: string | null }
+  | { kind: 'weather'; day: number | null; weather: WeatherKeyword | null }
 
 interface TripDetailPageProps {
   fetchDailyForecast?: (startDate: string, days: number) => Promise<DailyForecast[]>
@@ -75,6 +92,20 @@ export function TripDetailPage({
   // 정규식이 못 잡는 자유로운 문장을 AI가 해석할 때, 이전 턴들을 함께 보내 맥락을 잇는다.
   // 최근 몇 턴만 유지해서 프롬프트가 무한정 길어지지 않게 한다.
   const chatHistoryRef = useRef<ChatCompletionMessage[]>([])
+  // add/remove/weather 챗은 각자 필요한 조각(일차+활동명, 또는 일차+날씨)을 한 메시지에 같이
+  // 말해야만 바로 실행된다. 사용자가 "2일차"나 "디즈니랜드 삭제해줘"처럼 한쪽만 먼저 말하면 이번
+  // 턴만으로는 실행할 수 없지만, 그렇다고 아예 못 알아들은 척 일반 안내문으로 돌아가면 "방금 한
+  // 말이 무시됐다"는 인상을 준다 — 그래서 이미 알아낸 조각을 다음 턴까지 기억해뒀다가, 나머지
+  // 조각이 오면 합쳐서 실행한다. PlanChatPage의 lastAskedFieldRef와 같은 취지(봇이 같은 질문을
+  // 무한 반복하지 않기)다.
+  //
+  // 원래는 날씨 전용(pendingWeatherIntentRef)이었는데, add/remove가 활동명만 먼저 말하고 일차를
+  // 나중에 말하는 흔한 패턴에서 그 조각을 통째로 버리고 있었다. 게다가 parseWeatherIntent의 day
+  // 추출은 날씨 키워드 게이트가 없어서, 그렇게 버려진 삭제 요청에 대한 답으로 "2일차"라고만 말해도
+  // 무조건 날씨 대기 정보로 잘못 흡수돼버리는 회귀가 있었다(신고된 버그: "디즈니랜드 삭제해줘" →
+  // "2일차" 가 삭제 실행 대신 "어떤 날씨예요?"로 이어짐). 그래서 세 의도를 모두 표현할 수 있는
+  // 하나의 pending으로 일반화했다 — 자세한 처리는 resolveChatReply 참고.
+  const pendingChatActionRef = useRef<PendingChatAction | null>(null)
   // 모델을 내려받는 동안(수백MB, 몇 초~몇 분) 사용자가 "왜 자꾸 패턴을 못 알아듣지" 하고
   // 오해하지 않도록, PlanChatPage와 똑같이 진행률을 화면에 보여준다. isSupported()가 false면
   // 애초에 로딩을 시작하지 않으니 처음부터 false로 시작한다.
@@ -376,7 +407,23 @@ export function TripDetailPage({
     if (!targetDay) {
       return reply('tripDetail.dayNotInTrip', { day, max: trip.itinerary.days.length })
     }
-    if (!targetDay.activities.includes(activity)) {
+
+    // 카탈로그 활동은 "이름 (지역)"으로 저장되는데(generatePlan.ts의 getStylePool 참고), 사용자는
+    // 지역 없이 짧은 이름만 말하는 경우가 많다 — 그래서 정확히 일치하지 않으면 느슨한 매처로
+    // 실제 저장된 이름을 찾는다. 이후 삭제 실행과 응답 문구 모두 그 실제 이름을 쓴다 — 그래야
+    // 사용자가 자기가 말한 짧은 이름이 아니라 실제로 뭐가 지워졌는지 정확히 확인할 수 있다.
+    const matched = findMatchingActivity(targetDay.activities, activity)
+    if (!matched) {
+      // 지정한 날엔 없지만 다른 날엔 있을 수 있다(며칠차인지 착각한 경우) — 이때는 무작정
+      // "없다"고 답하는 대신 실제로 어느 날에 있는지 알려줘서 다시 정확한 날짜로 물어보게 한다.
+      // 실수로 지우는 걸 막기 위해 여기서 자동으로 지우지는 않는다.
+      for (const otherDay of trip.itinerary.days) {
+        if (otherDay.day === day) continue
+        const matchedElsewhere = findMatchingActivity(otherDay.activities, activity)
+        if (matchedElsewhere) {
+          return reply('tripDetail.chatActivityOnOtherDay', { day, activity: matchedElsewhere, actualDay: otherDay.day })
+        }
+      }
       return reply('tripDetail.chatActivityNotFound', { day, activity })
     }
 
@@ -385,14 +432,14 @@ export function TripDetailPage({
       trip.itinerary,
       trip.values,
       day,
-      activity,
+      matched,
       currentHistory,
     )
     await persistTripUpdate({ itinerary: nextItinerary, history })
 
     return addedActivity
-      ? reply('tripDetail.chatRemovedWithReplacement', { day, activity, added: addedActivity })
-      : reply('tripDetail.chatRemoved', { day, activity })
+      ? reply('tripDetail.chatRemovedWithReplacement', { day, activity: matched, added: addedActivity })
+      : reply('tripDetail.chatRemoved', { day, activity: matched })
   }
 
   async function applyWeatherAction(day: number, weather: WeatherKeyword): Promise<ChatReply> {
@@ -442,6 +489,27 @@ export function TripDetailPage({
     return (translate) => translate('tripDetail.chatWeatherAdjusted', { day, weather: translate(WEATHER_LABEL_KEYS[weather]) })
   }
 
+  // add/remove/weather와 달리 일정을 바꾸지 않는 순수 안내 응답이다 — "추천해줘"는 사용자가 아직
+  // 아무것도 확정하지 않은 요청이라, 여기서 바로 일정에 반영하는 대신 후보만 말해주고 사용자가
+  // "2일차에 그거 추가해줘"처럼 add 플로우로 자연스럽게 이어가게 한다.
+  async function applyRecommend(day: number | null): Promise<ChatReply> {
+    if (!trip) return reply('tripDetail.tripUnavailable')
+
+    const { styles } = trip.values
+    // 스타일을 하나도 안 골랐으면 후보 풀 자체가 없으니, 후보를 못 찾은 경우와 같은 안내로 수렴한다.
+    const placed = trip.itinerary.days.flatMap((d) => d.activities)
+    const suggestions = styles.length > 0 ? findRecommendations(styles, trip.itinerary.destination, placed, 2) : []
+
+    if (suggestions.length === 0) {
+      return reply('tripDetail.chatRecommendNothingNew')
+    }
+
+    const activities = suggestions.join(', ')
+    return day !== null
+      ? reply('tripDetail.chatRecommendForDay', { day, activities })
+      : reply('tripDetail.chatRecommend', { activities })
+  }
+
   /**
    * 1) 정규식 파서(빠르고 100% 예측 가능)를 먼저 시도하고,
    * 2) 셋 다 매치되지 않았고 로컬 LLM이 로드돼 있으면, 지금까지의 대화 맥락 + 현재 일정을 함께
@@ -455,17 +523,132 @@ export function TripDetailPage({
 
     const addIntent = parseAddActivityIntent(message, language)
     if (addIntent.day !== null && addIntent.activity) {
+      // 다른 의도가 확정됐으니, 남아있던 부분 정보가 이후의 엉뚱한 메시지와 잘못 합쳐지지
+      // 않도록 비운다.
+      pendingChatActionRef.current = null
       return applyAddActivity(addIntent.day, addIntent.activity)
     }
 
     const removeIntent = parseRemoveActivityIntent(message, language)
     if (removeIntent.day !== null && removeIntent.activity) {
+      pendingChatActionRef.current = null
       return applyRemoveActivity(removeIntent.day, removeIntent.activity)
     }
 
+    // parseWeatherIntent().day는 게이트 없이(=키워드가 없어도) 뽑히지만, .weather는 실제 날씨
+    // 단어가 있어야만 채워진다 — 그래서 "이번 메시지가 날씨 얘기였는지"는 weatherIntent.day가
+    // 아니라 반드시 hasWeatherKeyword로만 판단해야 한다. 이 구분이 바로 신고된 회귀의 핵심
+    // 수정점이다: "2일차"처럼 일차 숫자만 있고 날씨 단어가 없는 메시지를 날씨 의도로 단정하지 않는다.
     const weatherIntent = parseWeatherIntent(message, language)
-    if (weatherIntent.day !== null && weatherIntent.weather !== null) {
-      return applyWeatherAction(weatherIntent.day, weatherIntent.weather)
+    const weatherKeywordPresent = hasWeatherKeyword(message, language)
+
+    // add가 "키워드는 있었지만(추가/넣어/포함 등) 일차나 활동명 중 하나가 빠진" 부분 정보를
+    // 줬다면, 이전 턴에 남겨둔 같은 종류(add)의 부분 정보와 합친다. 합쳐서 완성되면 바로
+    // 실행하고, 아직 모자라면 그 조각을 기억해뒀다가 부족한 쪽을 되물어본다 — 예전엔 이 정보를
+    // 그냥 버리고 일반 안내문으로 돌아가서 "방금 한 말이 무시됐다"는 인상을 줬다.
+    if (addIntent.day !== null || addIntent.activity !== null) {
+      const previous = pendingChatActionRef.current
+      const carried = previous?.kind === 'add' ? previous : null
+      const day = addIntent.day ?? carried?.day ?? null
+      const activity = addIntent.activity ?? carried?.activity ?? null
+
+      if (day !== null && activity) {
+        pendingChatActionRef.current = null
+        return applyAddActivity(day, activity)
+      }
+
+      pendingChatActionRef.current = { kind: 'add', day, activity }
+      if (day === null && activity) return reply('tripDetail.clarificationNeedDayForAdd', { activity })
+      if (day !== null && !activity) return reply('tripDetail.clarificationNeedActivityForAdd', { day })
+      // 위 if 조건(day !== null || activity !== null) 때문에 이론상 도달하지 않지만, 타입
+      // 안전을 위해 방어적으로 일반 안내문으로 돌아간다.
+      return CLARIFICATION_MESSAGE
+    }
+
+    // remove도 add와 동일한 방식으로 부분 정보를 기억했다가 합쳐서 완성한다.
+    if (removeIntent.day !== null || removeIntent.activity !== null) {
+      const previous = pendingChatActionRef.current
+      const carried = previous?.kind === 'remove' ? previous : null
+      const day = removeIntent.day ?? carried?.day ?? null
+      const activity = removeIntent.activity ?? carried?.activity ?? null
+
+      if (day !== null && activity) {
+        pendingChatActionRef.current = null
+        return applyRemoveActivity(day, activity)
+      }
+
+      pendingChatActionRef.current = { kind: 'remove', day, activity }
+      if (day === null && activity) return reply('tripDetail.clarificationNeedDayForRemove', { activity })
+      if (day !== null && !activity) return reply('tripDetail.clarificationNeedActivityForRemove', { day })
+      return CLARIFICATION_MESSAGE
+    }
+
+    // 날씨도 마찬가지지만, 반드시 weatherKeywordPresent가 참일 때만("비/눈/폭염..." 같은 실제
+    // 날씨 단어가 이번 메시지에 있었을 때만) 날씨 의도로 다룬다 — 그래야 날씨 단어 없이 일차만
+    // 말한 메시지가 여기서 날씨로 잘못 흡수되지 않는다(바로 아래 "일차만 말한 경우" 처리로 넘어감).
+    if (weatherKeywordPresent && (weatherIntent.day !== null || weatherIntent.weather !== null)) {
+      const previous = pendingChatActionRef.current
+      const carried = previous?.kind === 'weather' ? previous : null
+      const day = weatherIntent.day ?? carried?.day ?? null
+      const weather = weatherIntent.weather ?? carried?.weather ?? null
+
+      if (day !== null && weather !== null) {
+        pendingChatActionRef.current = null
+        return applyWeatherAction(day, weather)
+      }
+
+      pendingChatActionRef.current = { kind: 'weather', day, weather }
+      if (day === null && weather !== null) {
+        return (translate) =>
+          translate('tripDetail.clarificationNeedDay', { weather: translate(WEATHER_LABEL_KEYS[weather]) })
+      }
+      if (day !== null && weather === null) {
+        return reply('tripDetail.clarificationNeedWeather', { day })
+      }
+      return CLARIFICATION_MESSAGE
+    }
+
+    // "추천해줘"류는 add/remove/weather 키워드와 겹치지 않아 항상 위의 세 체크를 그대로 통과해
+    // 여기 도달한다. add/remove와 달리 일차 없이도(day: null) 그 자체로 완성된 요청이라 pending으로
+    // 나눠 기억할 필요가 없고, 날씨 의도처럼 "일차 숫자만 있어도 날씨로 짐작"하는 아래쪽 bareDay
+    // 로직보다 반드시 먼저 처리해야 한다 — 안 그러면 "2일차에 뭐 넣을지 추천해줘"가 날씨 숫자만
+    // 뽑혀서 "어떤 날씨예요?"로 잘못 흡수된다(신고된 버그의 연장선). AI 폴백보다도 앞서 처리해서,
+    // 로컬 LLM이 이 요청을 weather로 잘못 추측할 기회 자체를 주지 않는다.
+    const recommendIntent = parseRecommendIntent(message, language)
+    if (recommendIntent) {
+      pendingChatActionRef.current = null
+      return applyRecommend(recommendIntent.day)
+    }
+
+    // 여기까지 왔다면 이번 메시지엔 add/remove/weather 중 어느 것에도 키워드 신호가 없었다는
+    // 뜻이다. 그래도 "2일차"처럼 순수하게 일차 숫자만 말했을 수 있는데, 이미 대기 중인 부분
+    // 정보(pendingChatActionRef)가 있다면 그건 곧 "그 요청에 대한 답"이므로 종류를 가리지 않고
+    // day 칸을 채운다 — 예전엔 날씨만 이렇게 이어받고 add/remove로 남겨둔 활동명은 그냥 버려서,
+    // "디즈니랜드 삭제해줘"(활동명만 옴) 다음에 "2일차"라고 답해도 그 활동명을 잊어버린 채
+    // 엉뚱하게 "어떤 날씨예요?"라고 되묻는 회귀가 있었다(신고된 버그의 핵심 원인). 이 완성 판단은
+    // 이미 알고 있는 정보를 이어붙이는 것뿐이라 애매함이 없으므로, AI 시도보다 먼저 처리한다.
+    const bareDay = weatherIntent.day
+    const pending = pendingChatActionRef.current
+    if (bareDay !== null && pending) {
+      if (pending.kind === 'weather') {
+        if (pending.weather !== null) {
+          pendingChatActionRef.current = null
+          return applyWeatherAction(bareDay, pending.weather)
+        }
+        pendingChatActionRef.current = { ...pending, day: bareDay }
+        return reply('tripDetail.clarificationNeedWeather', { day: bareDay })
+      }
+
+      if (pending.activity) {
+        const applyPending = pending.kind === 'add' ? applyAddActivity : applyRemoveActivity
+        pendingChatActionRef.current = null
+        return applyPending(bareDay, pending.activity)
+      }
+
+      pendingChatActionRef.current = { ...pending, day: bareDay }
+      return pending.kind === 'add'
+        ? reply('tripDetail.clarificationNeedActivityForAdd', { day: bareDay })
+        : reply('tripDetail.clarificationNeedActivityForRemove', { day: bareDay })
     }
 
     const engine = engineRef.current
@@ -477,9 +660,35 @@ export function TripDetailPage({
         (messages) => engine.complete(messages),
       )
 
-      if (action.action === 'add_activity') return applyAddActivity(action.day, action.activity)
-      if (action.action === 'remove_activity') return applyRemoveActivity(action.day, action.activity)
-      if (action.action === 'weather') return applyWeatherAction(action.day, action.weather)
+      if (action.action === 'add_activity') {
+        pendingChatActionRef.current = null
+        return applyAddActivity(action.day, action.activity)
+      }
+      if (action.action === 'remove_activity') {
+        pendingChatActionRef.current = null
+        return applyRemoveActivity(action.day, action.activity)
+      }
+      if (action.action === 'weather') {
+        pendingChatActionRef.current = null
+        return applyWeatherAction(action.day, action.weather)
+      }
+      if (action.action === 'recommend') {
+        pendingChatActionRef.current = null
+        return applyRecommend(action.day)
+      }
+    }
+
+    // AI까지 확인해봤지만(또는 애초에 로드돼 있지 않아서) 이 메시지로 다른 행동을 결정하지
+    // 못했다 — 이때만 "일차만 말했다"를 진짜 진전으로 보고 날씨 의도의 부분 정보로 남긴다(이
+    // 판단을 AI 시도보다 먼저 해버리면, "2일차에 그것도 넣어줘" 같이 우연히 일차 숫자가 들어있을
+    // 뿐 실제로는 AI가 풀어야 할 자유로운 문장까지 여기서 가로채 "날씨가 뭐예요?" 라고 엉뚱하게
+    // 되묻게 된다). 위의 pending 완성 분기와 달리 여기 도달했다는 건 대기 중이던 정보가 전혀
+    // 없었다는 뜻이라, 그 자체로 무엇에 대한 답인지 알 수 없는 "맨 일차 숫자"뿐이다 — 그래도 이
+    // 채팅이 애초에 날씨/추가/삭제만 다루는 화면이니, 날씨 의도로 짐작해 되묻는 쪽이 아무 반응도
+    // 없는 것보단 낫다는 기존 판단을 그대로 유지한다.
+    if (bareDay !== null) {
+      pendingChatActionRef.current = { kind: 'weather', day: bareDay, weather: null }
+      return reply('tripDetail.clarificationNeedWeather', { day: bareDay })
     }
 
     return CLARIFICATION_MESSAGE

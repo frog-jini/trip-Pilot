@@ -175,6 +175,25 @@ describe('PlanChatPage', () => {
     expect(await screen.findByText(/이해하지 못했어요/)).toBeInTheDocument()
   })
 
+  // "2일차에는 디즈니랜드 포함해서" 같은 메시지는 지금 봇이 물어보던 필드(인원)를 전혀 건드리지
+  // 않아 그 필드 값만 보면 "이해 못 함"으로 오판될 수 있지만, dayMustVisit이 실제로 늘었으니
+  // 이해한 것으로 보고 같은 질문을 다시 던지는 정상 흐름으로 이어져야 한다.
+  it('does not treat a day-specific must-visit message as unrecognized even though it leaves the pending field untouched', async () => {
+    const user = userEvent.setup()
+    signIn()
+    renderPlanChatPage(createFakeTripsServer())
+
+    await user.type(screen.getByLabelText('메시지 입력'), '도쿄 2박3일로 쇼핑 위주 일정 짜줘, 예산은 100만원')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+    await screen.findByText(/몇 명/)
+
+    await user.type(screen.getByLabelText('메시지 입력'), '2일차에는 디즈니랜드 포함해서')
+    await user.click(screen.getByRole('button', { name: '보내기' }))
+
+    expect(screen.queryByText(/이해하지 못했어요/)).not.toBeInTheDocument()
+    expect((await screen.findAllByText(/몇 명/)).length).toBeGreaterThan(1)
+  })
+
   it('builds up the itinerary across multiple messages and creates the trip once everything is known', async () => {
     const user = userEvent.setup()
     signIn()

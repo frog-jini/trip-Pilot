@@ -11,6 +11,9 @@ export type TripChatAction =
   | { action: 'add_activity'; day: number; activity: string }
   | { action: 'remove_activity'; day: number; activity: string }
   | { action: 'weather'; day: number; weather: WeatherKeyword }
+  // day는 특정 일차를 콕 집지 않은 "추천해줘"도 있을 수 있어 nullable이다(다른 세 행동과 달리
+  // day가 항상 있어야만 실행 가능한 게 아니라, 없으면 그냥 일정 전체에서 골라주면 된다).
+  | { action: 'recommend'; day: number | null }
   | { action: 'unknown' }
 
 const WEATHER_VALUES: readonly WeatherKeyword[] = [
@@ -33,11 +36,13 @@ const ACTION_SCHEMA = `The user's message may be written in Korean, English, or 
 { "action": "add_activity", "day": <day number>, "activity": <name of the activity to add> }
 { "action": "remove_activity", "day": <day number>, "activity": <name of the activity to remove, chosen from the names actually listed under "Current itinerary" below> }
 { "action": "weather", "day": <day number>, "weather": one of "rain" | "snow" | "storm" | "dust" | "heat" | "cold" | "clear" | "outdoor" }
+{ "action": "recommend", "day": <day number, or null if no specific day was mentioned> }
 { "action": "unknown" }
 
 - If the request asks to add an activity to the itinerary, use add_activity.
 - If the request asks to remove an activity from the itinerary, use remove_activity.
-- If the request asks to change the itinerary because of weather, use weather ("clear" for sunny/fine weather, "outdoor" for a request to switch back to outdoor activities).
+- If the request asks to change the itinerary because of weather, use weather ("clear" for sunny/fine weather, "outdoor" for a request to switch back to outdoor activities). Only use weather when the user actually mentions weather (rain, heat, etc.) — never guess a weather condition just because none of the other actions seem to fit.
+- If the user is asking for a suggestion or recommendation without naming a specific activity to add or remove (e.g. "what do you have?", "recommend something"), use recommend.
 - If the request refers to a day or activity mentioned earlier in the conversation using a pronoun (e.g. "there", "it"), infer it from the conversation context.
 - If the intent is not clear, always answer unknown.`
 
@@ -80,6 +85,12 @@ export function parseTripChatActionJson(raw: string): TripChatAction | null {
     WEATHER_VALUES.includes(obj.weather as WeatherKeyword)
   ) {
     return { action: 'weather', day: obj.day, weather: obj.weather as WeatherKeyword }
+  }
+
+  // day가 없거나(필드 자체를 생략) null이면 "특정 일차를 안 말했다"로 받아들인다 — 다른 세 행동과
+  // 달리 recommend는 day 없이도 완전한 행동이라, 필드 누락을 형식 오류로 취급하지 않는다.
+  if (obj.action === 'recommend' && (obj.day === undefined || obj.day === null || typeof obj.day === 'number')) {
+    return { action: 'recommend', day: typeof obj.day === 'number' ? obj.day : null }
   }
 
   if (obj.action === 'unknown') {

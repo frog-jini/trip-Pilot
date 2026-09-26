@@ -1,7 +1,12 @@
 // chatIntent.ts의 정규식 기반 파서 3종(날씨/활동추가/활동삭제)을 검증한다. 이 파서들이 여기서
 // 못 알아듣는 문장만 tripChatAction.ts의 로컬 LLM으로 넘어가므로, 어떤 표현까지 규칙만으로
 // 커버되는지가 이 테스트 목록 자체로 드러난다.
-import { parseAddActivityIntent, parseRemoveActivityIntent, parseWeatherIntent } from './chatIntent'
+import {
+  parseAddActivityIntent,
+  parseRecommendIntent,
+  parseRemoveActivityIntent,
+  parseWeatherIntent,
+} from './chatIntent'
 
 describe('parseWeatherIntent', () => {
   it('parses an ordinal day word with rain', () => {
@@ -171,5 +176,67 @@ describe('parseRemoveActivityIntent', () => {
       day: 2,
       activity: 'Disneyland',
     })
+  })
+})
+
+// 신고된 버그: "추천해줘"가 add/remove/weather 셋 중 어디에도 안 걸려서 로컬 LLM으로 넘어갔고,
+// 거기서 weather로 잘못 추측됐다. 이 테스트들은 그 정규식 경로가 "추천" 요청을 제대로 알아채는지,
+// 그리고 add/remove 요청을 실수로 삼키지는 않는지를 확인한다.
+describe('parseRecommendIntent', () => {
+  it('recognizes a bare recommend request with no day', () => {
+    expect(parseRecommendIntent('추천해줘')).toEqual({ day: null })
+  })
+
+  it('recognizes "추천해줄래" as a recommend request', () => {
+    expect(parseRecommendIntent('추천해줄래?')).toEqual({ day: null })
+  })
+
+  it('recognizes "뭐가 있어" with no named activity as a recommend request', () => {
+    expect(parseRecommendIntent('뭐가 있어')).toEqual({ day: null })
+  })
+
+  it('recognizes "뭐 있어" as a recommend request', () => {
+    expect(parseRecommendIntent('뭐 있어?')).toEqual({ day: null })
+  })
+
+  it('captures a day mentioned alongside the recommend request', () => {
+    expect(parseRecommendIntent('2일차에 뭐 넣을지 추천해줘')).toEqual({ day: 2 })
+  })
+
+  it('returns null for an unrelated message', () => {
+    expect(parseRecommendIntent('안녕하세요')).toBeNull()
+  })
+
+  it('does not fire on a clear add-activity request', () => {
+    expect(parseRecommendIntent('2일차에 디즈니랜드 추가해줘')).toBeNull()
+  })
+
+  it('does not fire on a clear remove-activity request', () => {
+    expect(parseRecommendIntent('1일차에 디즈니랜드 삭제해줘')).toBeNull()
+  })
+
+  it('does not fire on a clear weather request', () => {
+    expect(parseRecommendIntent('둘째 날은 비가 올 것 같아')).toBeNull()
+  })
+
+  it('recognizes a recommend request in English, with and without a day', () => {
+    expect(parseRecommendIntent('recommend something', 'en')).toEqual({ day: null })
+    expect(parseRecommendIntent('what do you have for day 2', 'en')).toEqual({ day: 2 })
+    expect(parseRecommendIntent('can you suggest something', 'en')).toEqual({ day: null })
+  })
+
+  it('does not fire on an English add/remove request', () => {
+    expect(parseRecommendIntent('add Disneyland on day 2', 'en')).toBeNull()
+    expect(parseRecommendIntent('remove Disneyland on day 2', 'en')).toBeNull()
+  })
+
+  it('recognizes a recommend request in Japanese, with and without a day', () => {
+    expect(parseRecommendIntent('おすすめして', 'ja')).toEqual({ day: null })
+    expect(parseRecommendIntent('2日目に何か提案してください', 'ja')).toEqual({ day: 2 })
+  })
+
+  it('does not fire on a Japanese add/remove request', () => {
+    expect(parseRecommendIntent('2日目にディズニーランドを追加して', 'ja')).toBeNull()
+    expect(parseRecommendIntent('2日目にディズニーランドを削除して', 'ja')).toBeNull()
   })
 })

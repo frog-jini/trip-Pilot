@@ -12,9 +12,7 @@ import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
 
 export const authRouter = Router()
 
-// 가입 폼에서 이메일 칸을 벗어날 때(blur) 미리 중복 여부를 물어보기 위한 엔드포인트 —
-// 실제 가입 처리(/signup)도 동일한 검사를 다시 하므로, 여기서 놓쳐도(레이스 컨디션 등)
-// 최종적으로는 안전하다.
+// 회원가입 중복 확인
 authRouter.get('/check-email', async (req, res) => {
   const email = req.query.email
 

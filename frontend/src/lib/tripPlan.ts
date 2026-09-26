@@ -56,6 +56,11 @@ export interface TripPlanFormValues {
   styles: TravelStyle[]
   mustVisit: string
   startDate: string
+  // "2일차에는 디즈니랜드 포함해서" 처럼 특정 일차를 콕 집어 말한 필수 방문지. mustVisit(자유
+  // 텍스트, 1일차에만 배치)과 달리 일차별로 나뉘어 있어 해당 일차에 그대로 꽂아 넣을 수 있다
+  // (generatePlan.ts 참고). 이 필드가 생기기 전에 만들어진 트립은 값 자체가 없을 수 있으니,
+  // 순회하는 곳에서는 항상 `?? {}`로 방어한다.
+  dayMustVisit: Record<number, string[]>
 }
 
 export const emptyTripPlanFormValues: TripPlanFormValues = {
@@ -67,6 +72,7 @@ export const emptyTripPlanFormValues: TripPlanFormValues = {
   styles: [],
   mustVisit: '',
   startDate: '',
+  dayMustVisit: {},
 }
 
 export interface DayPlan {
