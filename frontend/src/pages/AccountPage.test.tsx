@@ -168,8 +168,8 @@ describe('AccountPage', () => {
     const user = userEvent.setup()
     const server = createFakeAuthServer()
     signIn(server)
-    // Trips and favorites are both cascade-deleted server-side with the account
-    // (guaranteed by the schema's ON DELETE CASCADE, exercised by the backend's own tests).
+    // 여행과 즐겨찾기는 계정과 함께 서버에서 연쇄 삭제된다
+    // (스키마의 ON DELETE CASCADE가 보장하며, 백엔드 자체 테스트에서 검증한다).
 
     renderAt('/account', server.fetchImpl)
 

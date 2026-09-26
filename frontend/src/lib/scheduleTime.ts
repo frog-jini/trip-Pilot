@@ -37,7 +37,7 @@ function timeForIndex(index: number): string {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 }
 
-/** Whether the activity at this index would still land before the next midnight (i.e. the same day). */
+/** 이 순서의 활동이 다음 자정 전에(즉 같은 날 안에) 들어가는지 여부. */
 export function isBeforeNextMidnight(index: number): boolean {
   return totalMinutesForIndex(index) < MINUTES_PER_DAY
 }

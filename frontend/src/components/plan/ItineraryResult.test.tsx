@@ -215,7 +215,7 @@ describe('ItineraryResult', () => {
 
   it('shows a simulated time next to each activity, in order', () => {
     render(<ItineraryResult itinerary={itinerary} />)
-    // Day 1 has two activities: 09:00 for the first, 11:00 for the second.
+    // 1일차에는 활동이 두 개 있다: 첫 번째는 09:00, 두 번째는 11:00.
     expect(screen.getAllByText('09:00').length).toBeGreaterThan(0)
     expect(screen.getByText('11:00')).toBeInTheDocument()
   })

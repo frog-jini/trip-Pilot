@@ -193,8 +193,8 @@ export function TripDetailPage({
     }
   }, [startDate, dayCount, fetchDailyForecast])
 
-  // A published trip's community post holds its own itinerary snapshot, so any handler
-  // below that changes trip.itinerary must push that change through to keep it in sync.
+  // 게시된 여행의 커뮤니티 글은 일정의 사본을 따로 갖고 있다. 그래서 아래에서 trip.itinerary를
+  // 바꾸는 핸들러는 모두 그 변경을 커뮤니티 글에도 반영해 동기화를 유지해야 한다.
   //
   // updateTrip()은 costs/times를 넘기지 않으면 빈 값으로 덮어쓴다(백엔드 PUT이 그렇게 동작함).
   // 그래서 itinerary/history만 바뀌는 이 핸들러들도 현재 trip.costs·trip.times를 항상 함께

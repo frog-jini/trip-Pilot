@@ -269,10 +269,10 @@ function isValidStyle(value: unknown): value is TravelStyle {
 
 export type CompleteFn = (messages: { role: 'system' | 'user'; content: string }[]) => Promise<string>
 
-// A local model's first response can be slow (cold compute, weak hardware), but it must
-// never leave the user staring at a pending indicator forever — fall back past this point.
-// Kept short because the AI is only ever a supplement now (see parseTripPlanMessageWithAi):
-// the rule-based parser already ran first, so there's little value in waiting long on the AI.
+// 로컬 모델의 첫 응답은 느릴 수 있지만(처음 연산이거나 기기 성능이 낮은 경우), 사용자가 로딩
+// 표시만 계속 보고 있게 하면 안 된다 — 이 시간을 넘기면 대체 로직으로 넘어간다.
+// 짧게 잡은 이유는 이제 AI가 보조 역할일 뿐이기 때문이다(parseTripPlanMessageWithAi 참고):
+// 규칙 기반 파서가 이미 먼저 실행됐으니 AI를 오래 기다려서 얻을 게 별로 없다.
 const AI_COMPLETION_TIMEOUT_MS = 1000
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -292,13 +292,12 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
- * Runs the fast, deterministic rule-based parser first — so clearly-formatted input (like
- * the example message) is always recognized instantly and reliably, no matter what happens
- * with the AI. Only calls out to an LLM (via the injected `complete` function) when the
- * rule-based pass left something required still missing, to try to understand free-form
- * phrasing the rule-based patterns can't catch. Falls back to the rule-based result whenever
- * the AI response is missing, unparsable, too slow, or the completion call itself fails —
- * so the rule-based recognition is never lost, only ever added to.
+ * 빠르고 결과가 항상 같은 규칙 기반 파서를 먼저 실행한다 — 그래서 형식이 분명한 입력(예시
+ * 메시지 같은)은 AI 상태와 상관없이 항상 즉시, 확실하게 인식된다. 규칙 기반으로 처리한 뒤에도
+ * 필수 항목이 빠져 있을 때만, 규칙 패턴이 못 잡는 자유로운 표현을 이해하려고 (주입받은
+ * `complete` 함수로) LLM을 호출한다. AI 응답이 없거나, 파싱할 수 없거나, 너무 느리거나, 호출
+ * 자체가 실패하면 규칙 기반 결과로 돌아간다 — 그래서 규칙 기반 인식 결과는 절대 사라지지 않고
+ * 더해지기만 한다.
  */
 export async function parseTripPlanMessageWithAi(
   message: string,

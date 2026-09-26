@@ -13,9 +13,9 @@ import {
 import { apiRequest, ApiError } from '../lib/apiClient'
 import { AuthContext } from './authContextValue'
 
-// Social login isn't really wired up to Google/Kakao yet — clicking those buttons signs the
-// demo account in against the real API using a fixed password, so it's a genuine session
-// (not a local fake) rather than pretending to do OAuth.
+// 소셜 로그인은 아직 Google/Kakao와 실제로 연결돼 있지 않다 — 해당 버튼을 누르면 고정
+// 비밀번호로 실제 API에 데모 계정으로 로그인한다. 그래서 OAuth를 하는 척하는 게 아니라
+// (로컬 가짜가 아닌) 진짜 세션이다.
 const DEMO_SOCIAL_PASSWORD = 'trippilot-demo-social-login'
 
 interface AuthProviderProps {
@@ -172,8 +172,8 @@ export function AuthProvider({ children, fetchImpl }: AuthProviderProps) {
       try {
         await apiRequest('/api/auth/me', { method: 'DELETE', token, fetchImpl })
       } catch {
-        // Fall through and clear the local session regardless — there's nothing more
-        // the user can do about a failed delete call from this screen.
+        // 실패해도 그대로 진행해서 로컬 세션은 무조건 지운다 — 삭제 요청이 실패해도
+        // 이 화면에서 사용자가 더 할 수 있는 게 없다.
       }
     }
     logout()

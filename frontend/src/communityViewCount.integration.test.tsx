@@ -61,8 +61,8 @@ describe('community view count', () => {
 
     await user.click(screen.getByRole('link', { name: `${trip.itinerary.destination} 일정 보기` }))
 
-    // Opening it is what records the view — it shouldn't also bump the number shown
-    // to the very person whose visit is being counted.
+    // 페이지를 여는 것 자체가 조회로 기록된다 — 하지만 방금 조회로 집계된 그 사람에게
+    // 보이는 숫자까지 올라가면 안 된다.
     expect(await screen.findByText(`조회 ${trip.views}`)).toBeInTheDocument()
   })
 
@@ -91,8 +91,8 @@ describe('community view count', () => {
     await screen.findByText(`조회 ${trip.views}`)
     unmount()
 
-    // A brand-new page load (a different visitor, or this one reopening the browser)
-    // fetches fresh from the server and should see the recorded view reflected.
+    // 페이지를 새로 불러오면(다른 방문자이거나, 같은 사람이 브라우저를 다시 연 경우) 서버에서
+    // 새로 가져오므로 기록된 조회수가 반영돼 보여야 한다.
     renderApp('/community', server.fetchImpl)
     expect(await screen.findByText(`조회 ${trip.views + 1}`)).toBeInTheDocument()
   })

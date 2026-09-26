@@ -255,7 +255,7 @@ export interface AddDayResult {
   history: ActivityHistory
 }
 
-/** Appends one more day after the itinerary's current last day — lets a trip grow past the day count implied by its selected duration. */
+/** 일정의 현재 마지막 날 뒤에 하루를 더 붙인다 — 처음 고른 여행 기간보다 일정을 늘릴 수 있게 해준다. */
 export function addDay(
   itinerary: TripItinerary,
   values: TripPlanFormValues,
@@ -465,9 +465,9 @@ export function removeActivity(
   return { itinerary: { ...itinerary, days }, addedActivity, history: nextHistory }
 }
 
-/** Picks an activity from the combined pool of the selected styles. Prefers entries not already
- *  in `exclude` (anything currently in the itinerary); only once every unique entry is used up
- *  does it cycle back and allow a repeat — so a day is never blocked purely for running out of names. */
+/** 선택한 스타일들을 합친 목록에서 활동 하나를 고른다. `exclude`(현재 일정에 이미 있는 것)에
+ *  없는 항목을 우선하고, 겹치지 않는 항목을 다 쓴 뒤에야 처음으로 돌아가 중복을 허용한다 —
+ *  그래서 이름이 바닥났다는 이유만으로 하루 일정이 막히는 일은 없다. */
 function pickCyclicActivity(
   styles: TravelStyle[],
   destination: string,
@@ -485,15 +485,15 @@ export interface AddActivityResult {
   itinerary: TripItinerary
   addedActivity: string | null
   history: ActivityHistory
-  /** True when the day is as full as its simulated schedule allows (the next slot would land past midnight). */
+  /** 시뮬레이션한 일정상 그날이 꽉 찼으면 true (다음 활동이 자정을 넘어가게 되는 경우). */
   reachedDailyLimit: boolean
 }
 
 /**
- * Appends one more AI-suggested activity to the given day, without removing any existing ones.
- * Keeps working past the size of the unique style pool by cycling back through it, and only
- * stops once the day's simulated schedule (see scheduleTime.ts) would spill into the next
- * calendar day — reported via `reachedDailyLimit` so the UI can explain why it stopped.
+ * 기존 활동은 그대로 두고, 지정한 날에 AI 추천 활동을 하나 더 붙인다.
+ * 스타일 목록의 고유 항목 수를 넘어서도 처음부터 다시 돌며 계속 추가하고, 그날의 시뮬레이션
+ * 일정(scheduleTime.ts 참고)이 다음 날로 넘어가게 될 때만 멈춘다 — 이때 `reachedDailyLimit`으로
+ * 알려서 화면에서 왜 멈췄는지 설명할 수 있게 한다.
  */
 export function addActivity(
   itinerary: TripItinerary,
@@ -562,7 +562,7 @@ export function addNamedActivity(
   return { itinerary: { ...itinerary, days }, history: nextHistory, reachedDailyLimit: false }
 }
 
-/** Concrete alternatives the user can pick from to replace a specific activity. */
+/** 특정 활동을 바꿀 때 사용자가 고를 수 있는 구체적인 대안 목록. */
 export function getSwapOptions(
   destination: string,
   activity: string,
@@ -583,7 +583,7 @@ export interface SelectActivityResult {
   history: ActivityHistory
 }
 
-/** Directly swaps in the exact place the user chose (as opposed to an automatic AI pick). */
+/** 사용자가 직접 고른 장소로 그대로 바꾼다 (AI가 자동으로 고르는 것과 반대). */
 export function selectActivity(
   itinerary: TripItinerary,
   day: number,

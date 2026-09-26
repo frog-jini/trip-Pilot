@@ -140,9 +140,9 @@ describe('CommunityTripDetailPage', () => {
     const server = createFakeApiServer({ communityTrips: [trip] })
     renderAt(`/community/${trip.id}`, server.fetchImpl)
 
-    // Matches what the community list/preview just showed — not bumped by this very visit.
+    // 방금 커뮤니티 목록/미리보기에서 보인 숫자와 같다 — 이번 방문 때문에 올라가지 않는다.
     expect(await screen.findByText(`조회 ${trip.views}`)).toBeInTheDocument()
-    // The view is still persisted, so the next visitor (or the list on next load) sees it.
+    // 조회 자체는 저장되므로, 다음 방문자(또는 다음에 불러온 목록)에게는 반영돼 보인다.
     expect(server.communityTrips.get(trip.id)?.views).toBe(trip.views + 1)
   })
 

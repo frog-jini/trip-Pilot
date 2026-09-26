@@ -69,10 +69,10 @@ export function CommunityTripDetailPage({ fetchImpl }: CommunityTripDetailPagePr
   }, [token, fetchImpl])
 
   useEffect(() => {
-    // Guard against React StrictMode's dev-only double-invoke of effects, which would
-    // otherwise record two views for a single page visit. The count already shown on
-    // this page came from the fetch above, taken before this visit's own view is
-    // recorded — so recording it here doesn't retroactively bump what's on screen.
+    // React StrictMode는 개발 모드에서 effect를 두 번 실행하는데, 막지 않으면 한 번 방문에
+    // 조회가 두 번 기록된다. 이 페이지에 이미 보이는 숫자는 위에서 가져온 값이고, 이번 방문의
+    // 조회가 기록되기 전에 가져온 것이다 — 그래서 여기서 조회를 기록해도 화면의 숫자가 뒤늦게
+    // 올라가지는 않는다.
     // 비로그인 방문자는 애초에 상세를 못 보므로(로그인 안내만 뜸) 조회수 기록도 시도하지 않는다.
     if (!tripId || !token || hasRecordedView.current) return
     hasRecordedView.current = true

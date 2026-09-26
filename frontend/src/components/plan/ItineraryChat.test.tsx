@@ -180,12 +180,10 @@ describe('ItineraryChat', () => {
   })
 
   it('re-renders an already-sent AI reply in the newly selected language, keeping raw user-provided text untranslated inside it', async () => {
-    // Regression: previously AI replies were stored as plain, already-translated strings, so an
-    // already-sent reply stayed frozen in whatever language was active when it was first shown —
-    // even brand new replies after switching kept showing the old language for messages sent
-    // through the local-AI path. Storing a ChatReply (translation key + params) instead means the
-    // sentence template is rebuilt in the new language on every render, while free text the user
-    // actually typed (like an activity name) is carried through unchanged inside the params.
+    // 회귀 테스트: 예전에는 AI 답변을 이미 번역된 일반 문자열로 저장해서, 한 번 보낸 답변은 처음
+    // 표시될 때의 언어로 굳어버렸다 — 로컬 AI 경로로 보낸 메시지는 언어를 바꾼 뒤의 새 답변조차
+    // 예전 언어로 나왔다. 대신 ChatReply(번역 키 + 파라미터)를 저장하면 렌더링할 때마다 문장 틀이
+    // 새 언어로 다시 만들어지고, 사용자가 직접 입력한 텍스트(활동명 등)는 파라미터 안에 그대로 유지된다.
     const user = userEvent.setup()
     const onSendMessage = vi.fn().mockReturnValue(reply('tripDetail.noticeActivityAdded', { day: 2, activity: '디즈니랜드' }))
     render(

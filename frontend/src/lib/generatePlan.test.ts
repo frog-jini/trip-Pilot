@@ -337,14 +337,14 @@ describe('addActivity', () => {
       current = { itinerary: result.itinerary, history: result.history }
     }
 
-    // 3 initial + 5 added = 8 activities, well past the 6-item unique pool.
+    // 처음 3개 + 추가 5개 = 활동 8개로, 고유 항목 6개를 훌쩍 넘는다.
     expect(current.itinerary.days[0].activities).toHaveLength(8)
   })
 
   it('stops and reports reachedDailyLimit once the next activity would land past midnight', () => {
     let current = { itinerary: plan, history }
 
-    // Add until the day is as full as it can get (3 initial + 6 more = 9, the last slot before midnight).
+    // 하루가 꽉 찰 때까지 추가한다 (처음 3개 + 6개 더 = 9개, 자정 전 마지막 칸).
     for (let i = 0; i < 6; i++) {
       const result = addActivity(current.itinerary, values, 1, current.history)
       current = { itinerary: result.itinerary, history: result.history }

@@ -35,7 +35,7 @@ describe('addDaysIso', () => {
     it('keeps day offsets consistent so a later addDaysIso call on the result still lands correctly', () => {
       const day1 = addDaysIso('2026-07-25', 0)
       const day3 = addDaysIso('2026-07-25', 2)
-      // Simulates fetchDailyForecast computing its end date from day1 (an already-computed date).
+      // fetchDailyForecast가 이미 계산된 날짜인 day1로부터 종료일을 구하는 상황을 흉내 낸다.
       const recomputedEndDate = addDaysIso(day1, 2)
       expect(recomputedEndDate).toBe(day3)
     })
@@ -69,7 +69,7 @@ describe('todayIso', () => {
     })
 
     it('returns the local calendar date, not the UTC date, near a day boundary', () => {
-      // 2026-07-24 20:00 UTC is already 2026-07-25 05:00 in Korea.
+      // UTC 2026-07-24 20:00은 한국 시간으로 이미 2026-07-25 05:00이다.
       vi.setSystemTime(new Date('2026-07-24T20:00:00Z'))
       expect(todayIso()).toBe('2026-07-25')
     })

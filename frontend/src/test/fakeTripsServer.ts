@@ -1,5 +1,5 @@
-// A tiny in-memory stand-in for the backend's /api/trips routes, used to drive
-// components that call tripsStorage in tests without hitting a real server.
+// 백엔드의 /api/trips 라우트를 메모리 안에서 흉내 내는 작은 가짜 서버. 테스트에서 tripsStorage를
+// 호출하는 컴포넌트를 실제 서버 없이 돌리기 위해 쓴다.
 // fakeApiServer.ts와 내용이 겹치지만(둘 다 /api/trips를 흉내낸다) 이쪽은 trips만 필요한
 // 테스트(PlanNewPage 등)를 위한 더 가벼운 버전이다 — favorites/community까지 다 필요하면
 // fakeApiServer.ts를 쓴다.

@@ -37,8 +37,8 @@ export function isFavorited(favorites: FavoritePlace[], place: { destination: st
   return favorites.some((f) => f.destination === place.destination && f.activity === place.activity)
 }
 
-/** Prepends the destination's favorited places to mustVisit text, deduplicated. Pure — the
- * caller is responsible for fetching the current favorites list. */
+/** 여행지의 즐겨찾기 장소를 중복 없이 mustVisit 텍스트 앞에 붙인다. 순수 함수라서 현재
+ * 즐겨찾기 목록을 가져오는 건 호출하는 쪽의 책임이다. */
 export function mergeFavoritesIntoMustVisit(mustVisit: string, destination: string, favorites: FavoritePlace[]): string {
   const existing = mustVisit
     .split(/[,\n]/)

@@ -1,5 +1,5 @@
-// A tiny in-memory stand-in for the backend's /api/favorites routes, used to drive
-// components that call favoritesStorage in tests without hitting a real server.
+// 백엔드의 /api/favorites 라우트를 메모리 안에서 흉내 내는 작은 가짜 서버. 테스트에서
+// favoritesStorage를 호출하는 컴포넌트를 실제 서버 없이 돌리기 위해 쓴다.
 // 실제 백엔드처럼 (user_id, destination, activity) 중복이면 새로 안 만들고 기존 걸 그대로
 // 반환한다 — favoritesStorage.addFavorite가 "이미 있으면 조용히 성공"을 기대하기 때문.
 interface FakeFavorite {

@@ -1506,7 +1506,7 @@ const CATALOG: Record<string, StyleCatalog> = {
   },
 }
 
-// Short forms people actually type, mapped to the exact catalog key they refer to.
+// 사람들이 실제로 입력하는 줄임말을, 그 말이 가리키는 정확한 카탈로그 키로 매핑한다.
 const DESTINATION_ALIASES: [string, string][] = [
   ['일본 도쿄', '일본 도쿄'],
   ['도쿄', '일본 도쿄'],
@@ -1541,8 +1541,8 @@ const DESTINATION_ALIASES: [string, string][] = [
   ['사이공', '호치민'],
   ['치앙마이', '치앙마이'],
 
-  // Country names people type instead of a specific city — resolved to a representative
-  // city already in the catalog so "중국으로 여행 가고 싶어" works just like naming a city.
+  // 특정 도시 대신 나라 이름을 입력한 경우 — 카탈로그에 있는 대표 도시로 바꿔서
+  // "중국으로 여행 가고 싶어"도 도시 이름을 말한 것과 똑같이 동작하게 한다.
   ['일본', '일본 도쿄'],
   ['한국', '서울'],
   ['대한민국', '서울'],
@@ -1633,7 +1633,7 @@ const DESTINATION_ALIASES: [string, string][] = [
   ['タイ', '방콕'],
 ]
 
-/** Resolves free-form text (a short alias, the full name, or text containing either) to the canonical catalog key, if any. */
+/** 자유 입력 텍스트(줄임말, 전체 이름, 또는 둘 중 하나를 포함한 문장)를 정식 카탈로그 키로 바꾼다. 없으면 null. */
 export function findCatalogKey(destination: string): string | null {
   const trimmed = destination.trim()
   if (CATALOG[trimmed]) return trimmed

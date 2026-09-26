@@ -14,7 +14,7 @@ function extractToken(req: Request): string | null {
   return header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : null
 }
 
-/** Rejects the request with 401 unless it carries a valid bearer token. */
+/** 유효한 Bearer 토큰이 없으면 요청을 401로 거절한다. */
 export function requireAuth(req: AuthedRequest, res: Response, next: NextFunction): void {
   const token = extractToken(req)
   const payload = token ? verifyToken(token) : null
@@ -28,7 +28,7 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   next()
 }
 
-/** Attaches req.userId when a valid bearer token is present, but never rejects the request. */
+/** 유효한 Bearer 토큰이 있으면 req.userId를 붙이고, 없어도 요청을 거절하지는 않는다. */
 export function optionalAuth(req: AuthedRequest, _res: Response, next: NextFunction): void {
   const token = extractToken(req)
   const payload = token ? verifyToken(token) : null

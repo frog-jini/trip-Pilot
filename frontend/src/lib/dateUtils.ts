@@ -9,12 +9,11 @@ export function todayIso(): string {
   return `${year}-${month}-${day}`
 }
 
-// Does calendar-date arithmetic purely on the Y/M/D numbers via UTC-anchored Date methods,
-// never through a local-time parse. Parsing "YYYY-MM-DDT00:00:00" as local time and reading
-// it back via toISOString (UTC) silently shifts the date by a day in any UTC-ahead timezone
-// (e.g. Korea, UTC+9) — and since this function is called more than once in sequence
-// (itinerary day dates, then forecast date ranges derived from those dates), that shift
-// compounds instead of canceling out.
+// 날짜 계산은 연/월/일 숫자만 가지고 UTC 기준 Date 메서드로 처리하고, 로컬 시간으로 파싱하지 않는다.
+// "YYYY-MM-DDT00:00:00"을 로컬 시간으로 파싱한 뒤 toISOString(UTC)으로 다시 읽으면, UTC보다
+// 앞선 시간대(예: 한국, UTC+9)에서는 날짜가 조용히 하루 밀린다. 게다가 이 함수는 연달아 여러 번
+// 호출되기 때문에(일차별 날짜를 구한 뒤, 그 날짜로 다시 날씨 예보 기간을 구함) 밀린 날짜가
+// 상쇄되지 않고 계속 쌓인다.
 export function addDaysIso(dateIso: string, days: number): string {
   const [year, month, day] = dateIso.split('-').map(Number)
   const date = new Date(Date.UTC(year, month - 1, day))

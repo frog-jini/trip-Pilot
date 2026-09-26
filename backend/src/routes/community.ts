@@ -130,9 +130,9 @@ communityRouter.put('/:id', requireAuth, async (req: AuthedRequest, res) => {
     return
   }
 
-  // Re-sync from the source trip so edits made after publishing (add a day, swap an
-  // activity, ...) show up on the community post too. If the source trip was deleted,
-  // source_trip_id is null (ON DELETE SET NULL) and we just leave the itinerary as-is.
+  // 원본 여행에서 다시 동기화해서, 게시한 뒤에 한 수정(하루 추가, 활동 교체 등)이 커뮤니티
+  // 글에도 반영되게 한다. 원본 여행이 삭제됐다면 source_trip_id가 null(ON DELETE SET NULL)이므로
+  // 일정을 그대로 둔다.
   if (communityTrip.source_trip_id) {
     const tripResult = await pool.query('SELECT itinerary FROM trips WHERE id = $1 AND user_id = $2', [
       communityTrip.source_trip_id,

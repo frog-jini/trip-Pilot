@@ -1,7 +1,6 @@
-// A combined in-memory stand-in for the backend's /api/trips, /api/favorites, and
-// /api/community routes, for tests that exercise a page needing more than one resource
-// behind a single fetchImpl (e.g. a trip detail page that loads a trip, toggles favorites
-// on its activities, and publishes to the community).
+// 백엔드의 /api/trips, /api/favorites, /api/community 라우트를 하나로 합쳐 메모리 안에서
+// 흉내 내는 가짜 서버. 하나의 fetchImpl 뒤에서 여러 리소스가 필요한 페이지를 테스트할 때 쓴다
+// (예: 여행을 불러오고, 활동을 즐겨찾기에 넣고 빼고, 커뮤니티에 게시하는 여행 상세 페이지).
 interface FakeTrip {
   id: string
   userId: string
@@ -104,7 +103,7 @@ export function createFakeApiServer(options: FakeApiServerOptions = {}): FakeApi
     const authHeader = (init.headers as Record<string, string> | undefined)?.Authorization
     const userId = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null
 
-    // --- trips ---
+    // --- 여행 ---
     if (method === 'GET' && path === '/api/trips') {
       if (!userId) return jsonResponse(401, { error: '로그인이 필요해요.' })
       const mine = [...trips.values()]
@@ -156,7 +155,7 @@ export function createFakeApiServer(options: FakeApiServerOptions = {}): FakeApi
       }
     }
 
-    // --- favorites ---
+    // --- 즐겨찾기 ---
     if (method === 'GET' && path === '/api/favorites') {
       if (!userId) return jsonResponse(401, { error: '로그인이 필요해요.' })
       const mine = [...favorites.values()]
@@ -192,7 +191,7 @@ export function createFakeApiServer(options: FakeApiServerOptions = {}): FakeApi
       return jsonResponse(204, null)
     }
 
-    // --- community ---
+    // --- 커뮤니티 ---
     if (method === 'GET' && path === '/api/community') {
       const list = [...communityTrips.values()]
         .map((trip) => communityTripToApi(trip, userId))

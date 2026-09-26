@@ -68,8 +68,8 @@ export function PlanChatPage({
     //     if (!cancelled) engineRef.current = engine
     //   })
     //   .catch(() => {
-    //     // No AI engine available (unsupported browser or load failure) — the rule-based
-    //     // parser already covers the full flow, so we simply keep using it.
+    //     // 쓸 수 있는 AI 엔진이 없음(지원하지 않는 브라우저이거나 로딩 실패) — 규칙 기반
+    //     // 파서가 이미 전체 흐름을 처리하므로 그대로 그걸 쓴다.
     //   })
     //   .finally(() => {
     //     if (!cancelled) setEngineLoading(false)
@@ -97,8 +97,8 @@ export function PlanChatPage({
         if (!cancelled) engineRef.current = engine
       })
       .catch(() => {
-        // No AI engine available (unsupported browser or load failure) — the rule-based
-        // parser already covers the full flow, so we simply keep using it.
+        // 쓸 수 있는 AI 엔진이 없음(지원하지 않는 브라우저이거나 로딩 실패) — 규칙 기반
+        // 파서가 이미 전체 흐름을 처리하므로 그대로 그걸 쓴다.
       })
       .finally(() => {
         targetPercent = 100

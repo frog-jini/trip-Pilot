@@ -283,8 +283,8 @@ describe('parseTripPlanMessageWithAi', () => {
   })
 
   it('keeps the rule-based recognition even if the AI never gets a chance to run, whatever phrasing was used', async () => {
-    // Regression: previously the AI was the *only* extraction path when loaded, so a slow
-    // or hanging AI meant even exactly-formatted input like this never got recognized.
+    // 회귀 테스트: 예전에는 AI가 로드되면 AI가 *유일한* 추출 경로였기 때문에, AI가 느리거나
+    // 멈추면 이렇게 형식이 정확한 입력조차 인식되지 않았다.
     const complete = vi.fn().mockReturnValue(new Promise(() => {}))
     vi.useFakeTimers()
 
@@ -309,7 +309,7 @@ describe('parseTripPlanMessageWithAi', () => {
       JSON.stringify({ destination: null, duration: null, travelers: '2', budget: '100', styles: [] }),
     )
 
-    // Free-form phrasing the rule-based regexes cannot parse (no digits, no known keywords).
+    // 규칙 기반 정규식으로는 파싱할 수 없는 자유로운 표현 (숫자도, 알려진 키워드도 없음).
     const result = await parseTripPlanMessageWithAi('음 아무데나 재밌는 데로 데려가줘', baseValues(), complete)
 
     expect(complete).toHaveBeenCalled()

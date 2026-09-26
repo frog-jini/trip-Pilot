@@ -1,5 +1,5 @@
-// A tiny in-memory stand-in for the backend's /api/auth/* routes, used to drive
-// AuthContext (and anything that renders it) in tests without hitting a real server.
+// 백엔드의 /api/auth/* 라우트를 메모리 안에서 흉내 내는 작은 가짜 서버. 테스트에서 AuthContext
+// (그리고 이를 렌더링하는 모든 것)를 실제 서버 없이 돌리기 위해 쓴다.
 // 실제 JWT를 흉내내지 않고 그냥 user.id를 토큰으로 그대로 쓴다 — 테스트에서는 서명 검증이
 // 필요 없고, findByToken(token)이 id로 바로 사용자를 찾을 수 있어 훨씬 단순해진다.
 interface FakeUser {

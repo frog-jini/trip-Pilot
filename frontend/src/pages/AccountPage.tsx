@@ -65,7 +65,7 @@ export function AccountPage() {
   }
 
   async function handleConfirmDelete() {
-    // Trips and favorites are both deleted server-side, cascading from the account row.
+    // 여행과 즐겨찾기는 계정이 삭제될 때 서버에서 연쇄적으로 함께 삭제된다.
     await deleteAccount()
     navigate('/')
   }

@@ -67,8 +67,8 @@ export interface DailyForecast {
   precipitation: number
 }
 
-// Open-Meteo's free forecast endpoint only covers ~16 days from today; requesting
-// a date beyond that fails the entire call instead of just omitting those days.
+// Open-Meteo 무료 예보 API는 오늘부터 약 16일까지만 제공한다. 그 이후 날짜를 요청하면 해당
+// 날짜만 빠지는 게 아니라 요청 전체가 실패한다.
 const MAX_FORECAST_DAYS_AHEAD = 15
 
 export async function fetchDailyForecast(

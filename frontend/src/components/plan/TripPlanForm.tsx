@@ -39,8 +39,8 @@ export function TripPlanForm({ onSubmit, initialValues, favorites = [] }: TripPl
   const durationId = useId()
   const mustVisitId = useId()
 
-  // The initial destination's favorites may still be loading (fetched async by the parent)
-  // when this form first mounts — catch up once they arrive, but only once.
+  // 이 폼이 처음 마운트될 때 첫 여행지의 즐겨찾기는 아직 불러오는 중일 수 있다(부모가 비동기로
+  // 가져옴) — 도착하면 그때 반영하되, 딱 한 번만 반영한다.
   const initialDestination = initialValues?.destination
   const hasAppliedInitialFavorites = useRef(false)
   useEffect(() => {

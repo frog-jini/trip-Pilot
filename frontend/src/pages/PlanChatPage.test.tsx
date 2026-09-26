@@ -58,10 +58,9 @@ describe('PlanChatPage', () => {
     localStorage.clear()
   })
 
-  // Regression: reported that after switching UI language to English and back to Korean
-  // mid-conversation, the chat kept replying in English — i.e. the reply text got "stuck" on
-  // whatever language was active for the *first* message, instead of tracking the currently
-  // selected language for each new message.
+  // 회귀 테스트: 대화 도중 화면 언어를 영어로 바꿨다가 다시 한국어로 돌려도 채팅이 계속 영어로
+  // 답한다는 신고가 있었다 — 즉 답변 문장이 새 메시지마다 현재 선택된 언어를 따르지 않고,
+  // *첫* 메시지 때의 언어에 "고정"돼 버렸다.
   it('replies in the currently selected language, even after switching away and back to it', async () => {
     const user = userEvent.setup()
     signIn()
@@ -85,26 +84,26 @@ describe('PlanChatPage', () => {
     signIn()
     renderPlanChatPageWithLanguageSwitching(createFakeTripsServer())
 
-    // ko (default) → ja
+    // ko(기본) → ja
     await user.click(screen.getByRole('button', { name: '日本語' }))
     await user.type(screen.getByLabelText('メッセージ入力'), 'こんにちは')
     await user.click(screen.getByRole('button', { name: '送信' }))
     expect(await screen.findByText(/どこへ旅行したいですか/)).toBeInTheDocument()
 
-    // ja → en: switching language alone retranslates that still-pending destination question
-    // bubble into English — no new message needed to see it change.
+    // ja → en: 언어만 바꿔도 아직 답하지 않은 여행지 질문 말풍선이 영어로 다시 번역된다 —
+    // 새 메시지를 보내지 않아도 바뀐다.
     await user.click(screen.getByRole('button', { name: 'English' }))
     expect(await screen.findByText(/Where would you like to travel/)).toBeInTheDocument()
     expect(screen.queryByText(/どこへ旅行したいですか/)).not.toBeInTheDocument()
 
-    // Answering now (in English) actually supplies the destination, so the conversation
-    // moves on to the next question instead of repeating the same one.
+    // 이제 (영어로) 답하면 여행지가 실제로 채워지므로, 같은 질문을 반복하지 않고
+    // 다음 질문으로 넘어간다.
     await user.type(screen.getByLabelText('Message input'), 'Tokyo')
     await user.click(screen.getByRole('button', { name: 'Send' }))
     expect(await screen.findByText(/how many people/i)).toBeInTheDocument()
 
-    // en → ko: both the earlier (now historical) destination question and the newer
-    // travelers question re-render in Korean.
+    // en → ko: 앞서 나온(이제는 지난) 여행지 질문과 새로 나온 인원 질문이
+    // 모두 한국어로 다시 렌더링된다.
     await user.click(screen.getByRole('button', { name: '한국어' }))
     expect(await screen.findByText(/어디로 여행 가고 싶으세요/)).toBeInTheDocument()
     expect(await screen.findByText(/몇 명/)).toBeInTheDocument()

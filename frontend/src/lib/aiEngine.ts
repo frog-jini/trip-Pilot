@@ -38,14 +38,14 @@ export function isWebGpuSupported(): boolean {
 let enginePromise: Promise<ChatEngine> | null = null
 
 /**
- * Loads (and caches) the in-browser LLM engine. Not unit-testable here: it requires a
- * real WebGPU-capable browser to download and run the model, which this test environment
- * (Node/jsdom, no GPU) cannot provide. Verified against WebLLM's documented API instead.
+ * 브라우저 안에서 돌아가는 LLM 엔진을 로드한다(한 번 로드하면 재사용). 여기서는 단위 테스트할
+ * 수 없다: 모델을 내려받아 실행하려면 실제 WebGPU 지원 브라우저가 필요한데, 이 테스트 환경
+ * (Node/jsdom, GPU 없음)에서는 불가능하다. 대신 WebLLM 공식 문서의 API와 대조해 검증했다.
  */
 export function loadWebLlmEngine(onProgress?: (report: InitProgressReport) => void): Promise<ChatEngine> {
   if (!enginePromise) {
-    // Dynamically imported so the (large) model-runtime library is only ever downloaded
-    // by users who actually open the AI chat, instead of bloating every page's bundle.
+    // 동적으로 import해서, (용량이 큰) 모델 실행 라이브러리를 모든 페이지 번들에 넣지 않고
+    // 실제로 AI 채팅을 여는 사용자만 내려받게 한다.
     enginePromise = import('@mlc-ai/web-llm')
       .then(({ CreateMLCEngine, prebuiltAppConfig }) => {
         const modelId = pickModelId(prebuiltAppConfig.model_list)
@@ -67,7 +67,7 @@ export function loadWebLlmEngine(onProgress?: (report: InitProgressReport) => vo
   return enginePromise
 }
 
-/** Skips loading entirely on browsers without WebGPU, instead of letting the load fail. */
+/** WebGPU가 없는 브라우저에서는 로딩이 실패하도록 두지 않고 아예 로딩을 건너뛴다. */
 export function loadEngineWhenSupported(onProgress?: (report: InitProgressReport) => void): Promise<ChatEngine> {
   if (!isWebGpuSupported()) {
     return Promise.reject(new Error('WebGPU is not supported in this browser'))

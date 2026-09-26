@@ -92,9 +92,8 @@ describe('TripDetailPage', () => {
     localStorage.clear()
   })
 
-  // Regression: reported that after switching the UI language to English and back to Korean
-  // mid-conversation, the chat kept replying in English for the day/weather chat too — i.e. the
-  // reply language got "stuck" on whatever was active for the first message in the session.
+  // 회귀 테스트: 대화 도중 화면 언어를 영어로 바꿨다가 다시 한국어로 돌려도 일차/날씨 채팅이
+  // 계속 영어로 답한다는 신고가 있었다 — 즉 답변 언어가 세션의 첫 메시지 때 언어에 "고정"됐다.
   it('replies to the weather chat in the currently selected language, even after switching away and back to it', async () => {
     const user = userEvent.setup()
     signIn()
@@ -117,18 +116,17 @@ describe('TripDetailPage', () => {
     await user.type(screen.getByLabelText('메시지 입력'), '둘째 날은 날씨가 맑대')
     await user.click(screen.getByRole('button', { name: '보내기' }))
 
-    // Both replies now show in Korean — the new one, and the earlier (English) one re-rendered
-    // in the newly selected language, per the user's explicit request to retranslate history.
+    // 이제 두 답변 모두 한국어로 보인다 — 새 답변과, 새로 고른 언어로 다시 렌더링된 이전(영어)
+    // 답변 모두. 지난 대화도 다시 번역해 달라는 사용자의 명시적인 요청에 따른 것이다.
     expect(await screen.findByText(/1일차는 맑은 날씨라니 잘 됐네요/)).toBeInTheDocument()
     expect(screen.getByText(/2일차는 맑은 날씨라니 잘 됐네요/)).toBeInTheDocument()
     expect(screen.queryByText(/I’ll leave the plan as is/)).not.toBeInTheDocument()
   })
 
-  // Exact repro reported by the user: "2일차에 디즈니랜드로 가줘" doesn't contain any of
-  // KO_CONFIG.addKeyword's words (추가|넣어|포함), so the regex parser can't resolve it and this
-  // falls through to the local AI engine path (resolveTripChatActionWithAi), unlike the weather
-  // test above which the regex parser resolves directly. Checking whether *that* path is the one
-  // that stays stuck on the language active when the AI engine first loaded.
+  // 사용자가 신고한 재현 그대로: "2일차에 디즈니랜드로 가줘"에는 KO_CONFIG.addKeyword의 단어
+  // (추가|넣어|포함)가 하나도 없어서 정규식 파서가 처리하지 못하고, 로컬 AI 엔진 경로
+  // (resolveTripChatActionWithAi)로 넘어간다. 정규식 파서가 바로 처리하는 위의 날씨 테스트와
+  // 다른 점이다. *그* 경로가 AI 엔진이 처음 로드될 때의 언어에 고정되는지 확인한다.
   it('resolves free-form add-activity requests via the AI engine in the currently selected language, and re-renders past replies too when the language changes', async () => {
     const user = userEvent.setup()
     signIn()
@@ -153,9 +151,9 @@ describe('TripDetailPage', () => {
     await user.click(screen.getByRole('button', { name: '보내기' }))
     expect(await screen.findByText(/2일차에.*Disneyland.*추가했어요/)).toBeInTheDocument()
 
-    // Switching languages must re-render that already-sent reply in the new language too — not
-    // just replies to messages sent after the switch (the user's exact reported repro: ask the
-    // AI to add Disneyland on day 2, then switch languages, and find the reply still Korean).
+    // 언어를 바꾸면 전환 이후에 보낸 메시지의 답변뿐 아니라 이미 보낸 답변도 새 언어로 다시
+    // 렌더링돼야 한다 (사용자가 신고한 재현 그대로: AI에게 2일차에 디즈니랜드를 추가해 달라고 한
+    // 뒤 언어를 바꿨더니 답변이 여전히 한국어였다).
     await user.click(screen.getByRole('button', { name: 'English' }))
     expect(await screen.findByText(/Added "Disneyland" to day 2/)).toBeInTheDocument()
     expect(screen.queryByText(/추가했어요/)).not.toBeInTheDocument()
@@ -492,8 +490,8 @@ describe('TripDetailPage', () => {
     expect(await screen.findByText(/어느 날짜에 어떤 날씨/)).toBeInTheDocument()
   })
 
-  // Regression: "2일차" alone after an unrelated message used to fall all the way back to the
-  // same generic clarification message, as if the day had never been understood at all.
+  // 회귀 테스트: 관련 없는 메시지 뒤에 "2일차"만 보내면, 일차를 전혀 이해하지 못한 것처럼
+  // 똑같은 일반 안내 메시지로 되돌아가곤 했다.
   it('asks specifically for the weather when only the day is given after an unrelated message', async () => {
     const user = userEvent.setup()
     signIn()
@@ -607,32 +605,30 @@ describe('TripDetailPage', () => {
 
     renderAt(server, `/trips/${trip.id}`)
 
-    // Leaves day 1 pending, waiting on the weather half of the pair.
+    // 1일차만 기억해 두고, 짝이 되는 날씨 정보를 기다린다.
     await user.type(await screen.findByLabelText('메시지 입력'), '1일차')
     await user.click(screen.getByRole('button', { name: '보내기' }))
     expect(await screen.findByText(/1일차인 건 알겠어요/)).toBeInTheDocument()
 
-    // An unrelated add-activity message must still work normally, not get swallowed by the
-    // pending weather slot.
+    // 관련 없는 활동 추가 메시지는 기다리던 날씨 정보에 흡수되지 않고
+    // 정상적으로 처리돼야 한다.
     await user.type(screen.getByLabelText('메시지 입력'), '2일차에 디즈니랜드 추가해줘')
     await user.click(screen.getByRole('button', { name: '보내기' }))
     expect(await screen.findByText(/2일차에.*디즈니랜드.*추가했어요/)).toBeInTheDocument()
     expect(serverTrip(server, trip.id).itinerary.days[1].activities).toContain('디즈니랜드')
 
-    // The stale "day 1" pending from before the add-activity message must have been cleared —
-    // a weather-only message now should ask for the day again, not silently reuse day 1.
+    // 활동 추가 메시지 전에 기억해 뒀던 오래된 "1일차"는 지워졌어야 한다 — 이제 날씨만 보내면
+    // 1일차를 몰래 재사용하지 않고 일차를 다시 물어봐야 한다.
     await user.type(screen.getByLabelText('메시지 입력'), '비가 올 것 같아')
     await user.click(screen.getByRole('button', { name: '보내기' }))
     expect(await screen.findByText(/비 소식이군요/)).toBeInTheDocument()
   })
 
-  // Exact regression reported by the user: a remove request with no day used to fall all the way
-  // back to the fully generic clarification (which happens to mention "which day" among other
-  // things), and the activity name it already gave ('디즈니랜드') was discarded entirely. Answering
-  // with just the day afterward then got misread as completing an imagined WEATHER intent (since
-  // parseWeatherIntent's day extraction has no keyword gate) instead of the remove that was
-  // actually in progress — so the user got asked "what's the weather?" instead of the item being
-  // removed.
+  // 사용자가 신고한 회귀 그대로: 일차 없이 삭제를 요청하면 완전히 일반적인 안내 메시지(여러 내용
+  // 중에 "어느 날"도 언급함)로 되돌아갔고, 이미 말한 활동명('디즈니랜드')은 통째로 버려졌다. 그 뒤
+  // 일차만 답하면, 실제로 진행 중이던 삭제가 아니라 있지도 않은 날씨 요청을 완성하는 것으로 잘못
+  // 해석됐다(parseWeatherIntent의 일차 추출에는 키워드 조건이 없기 때문). 그래서 활동이 삭제되는
+  // 대신 "날씨가 어떤가요?"라는 질문을 받았다.
   it('remembers a remove request missing only the day, asks specifically for the day, and completes the removal once the day is given', async () => {
     const user = userEvent.setup()
     signIn()
@@ -649,19 +645,19 @@ describe('TripDetailPage', () => {
 
     await user.type(await screen.findByLabelText('메시지 입력'), '디즈니랜드 삭제해줘')
     await user.click(screen.getByRole('button', { name: '보내기' }))
-    // Asks specifically for the day for THIS remove request — not the fully generic clarification.
+    // 완전히 일반적인 안내가 아니라, *이* 삭제 요청에 필요한 일차를 콕 집어 물어본다.
     expect(await screen.findByText(/디즈니랜드.*몇 일차에서 삭제할까요/)).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('메시지 입력'), '1일차')
     await user.click(screen.getByRole('button', { name: '보내기' }))
 
-    // The removal actually executes — not a "what's the weather?" reply.
+    // "날씨가 어떤가요?" 답변이 아니라 실제로 삭제가 실행된다.
     expect(await screen.findByText(/1일차에서.*도쿄 디즈니랜드 \(우라야스\).*삭제했어요/)).toBeInTheDocument()
     expect(screen.queryByText(/어떤 날씨/)).not.toBeInTheDocument()
     expect(serverTrip(server, trip.id).itinerary.days[0].activities).not.toContain('도쿄 디즈니랜드 (우라야스)')
   })
 
-  // Same shape as the remove regression above, but for add.
+  // 위의 삭제 회귀 테스트와 같은 형태지만, 추가 요청에 대한 것이다.
   it('remembers an add request missing only the day, asks specifically for the day, and completes the addition once the day is given', async () => {
     const user = userEvent.setup()
     signIn()
@@ -687,9 +683,9 @@ describe('TripDetailPage', () => {
     expect(serverTrip(server, trip.id).itinerary.days[1].activities).toContain('디즈니랜드')
   })
 
-  // A bare day-only message doesn't short-circuit locally when nothing is pending — the local AI
-  // engine (when loaded) still gets first crack at it, same as any other message the regex parsers
-  // can't fully resolve on their own.
+  // 기다리는 요청이 없을 때는 일차만 있는 메시지를 로컬에서 바로 처리하지 않는다 — 정규식
+  // 파서만으로 완전히 처리할 수 없는 다른 메시지와 마찬가지로, (로드돼 있다면) 로컬 AI 엔진이
+  // 먼저 처리해 볼 기회를 얻는다.
   it('still lets the local AI engine see a bare day-only message when no add/remove/weather request is pending', async () => {
     const user = userEvent.setup()
     signIn()
@@ -825,9 +821,9 @@ describe('TripDetailPage', () => {
     expect(serverTrip(server, trip.id).itinerary.days[0].activities).not.toContain('디즈니랜드')
   })
 
-  // Regression for the bug where catalog-backed activities are stored as "이름 (지역)"
-  // (getStylePool in generatePlan.ts) but the user naturally says just the short name — an exact
-  // string match against '도쿄 디즈니랜드 (우라야스)' never succeeds for '디즈니랜드'.
+  // 회귀 테스트: 카탈로그 기반 활동은 "이름 (지역)" 형태로 저장되는데(generatePlan.ts의
+  // getStylePool), 사용자는 자연스럽게 짧은 이름만 말한다 — 그래서 '디즈니랜드'를 '도쿄 디즈니랜드
+  // (우라야스)'와 정확히 문자열 비교하면 절대 일치하지 않던 버그.
   it('removes a catalog-backed activity by its short spoken name and mentions the full matched name', async () => {
     const user = userEvent.setup()
     signIn()
@@ -1105,13 +1101,13 @@ describe('TripDetailPage', () => {
     expect(await screen.findByText(/어느 날짜에 어떤 날씨인지/)).toBeInTheDocument()
   })
 
-  // Exact reported repro: "추천해줘" matches none of add/remove/weather, so it either fell to the
-  // local AI engine — which, forced to pick from add_activity/remove_activity/weather/unknown,
-  // hallucinated a weather change (e.g. guessed rain) — or, on a retry, to the generic
-  // clarificationMessage. Neither is a real answer to "recommend something". With 관광 중심 selected
-  // for 일본 도쿄, days 1–3 deterministically place the 6 catalog spots plus the first 3 generic
-  // activities (see generatePlan.ts's takeFreshActivities), so the next fresh generic activities —
-  // '유명 사원 관광' and '구시가지 골목 탐방' — are exactly what should be suggested.
+  // 신고된 재현 그대로: "추천해줘"는 추가/삭제/날씨 어디에도 해당하지 않아서, 로컬 AI 엔진으로
+  // 넘어가거나(add_activity/remove_activity/weather/unknown 중 하나를 골라야 해서 있지도 않은
+  // 날씨 변경을 지어냄, 예: 비가 온다고 추측) 다시 시도하면 일반 안내 메시지(clarificationMessage)로
+  // 넘어갔다. 둘 다 "뭔가 추천해줘"에 대한 진짜 답이 아니다. 일본 도쿄에 관광 중심을 고르면
+  // 1~3일차에 카탈로그 장소 6개와 일반 활동 앞의 3개가 항상 같은 순서로 배치되므로
+  // (generatePlan.ts의 takeFreshActivities 참고), 그다음 새 일반 활동인 '유명 사원 관광'과
+  // '구시가지 골목 탐방'이 정확히 추천돼야 한다.
   it('suggests a fresh, unused activity from the trip’s style when asked to recommend something, via the regex path alone (no AI engine needed)', async () => {
     const user = userEvent.setup()
     signIn()
@@ -1282,7 +1278,7 @@ describe('TripDetailPage', () => {
       await user.click(option)
     }
 
-    // Day 1's slots should still offer swaps; only day 2 (never touched) surviving would leave half as many.
+    // 1일차 활동에도 여전히 교체 버튼이 있어야 한다; 손대지 않은 2일차만 남아 있다면 버튼 수가 절반이 된다.
     expect(screen.getAllByRole('button', { name: /다른 옵션 보기/ }).length).toBeGreaterThan(totalToggles / 2)
   })
 
@@ -1516,7 +1512,7 @@ describe('TripDetailPage', () => {
 
     renderAt(server, `/trips/${trip.id}`)
 
-    // Add enough activities to exceed the old 6-activity ceiling (the unique style pool size).
+    // 예전 상한이던 활동 6개(스타일별 고유 항목 수)를 넘을 만큼 활동을 추가한다.
     for (let i = 0; i < 6; i++) {
       await user.click(await screen.findByRole('button', { name: '1일차 활동 추가' }))
     }
@@ -1533,8 +1529,8 @@ describe('TripDetailPage', () => {
   })
 })
 
-// The swap/edit handlers persist via an awaited PUT — give the fake server's in-flight
-// request a moment to settle before reading back its state.
+// 교체/수정 핸들러는 await한 PUT 요청으로 저장한다 — 가짜 서버의 상태를 다시 읽기 전에
+// 진행 중인 요청이 끝날 시간을 잠깐 준다.
 async function waitForActivities(server: FakeApiServer, tripId: string): Promise<string[]> {
   await new Promise((resolve) => setTimeout(resolve, 0))
   return serverTrip(server, tripId).itinerary.days[0].activities
